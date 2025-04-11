@@ -1,0 +1,9 @@
+non-conda-deps/**
+**__pycache__**
+**.pyc
+
+.nextflow*
+nextflow/nextflow.config
+.env
+
+fastp*

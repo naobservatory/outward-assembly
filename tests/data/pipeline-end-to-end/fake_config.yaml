@@ -1,0 +1,17 @@
+assembly:
+  input_seed_path: "tests/data/pipeline-end-to-end/seed_seq.fasta"
+  input_dataset_list: "tests/data/pipeline-end-to-end/fake_input_data.csv"
+  dataset_priority: 1
+  adapter_path: "tests/data/pipeline-end-to-end/fake_adapters.fasta"
+  work_dir: "/home/ec2-user/pipeline-development/2025_Q1/outward/work"
+  out_dir: "/home/ec2-user/pipeline-development/2025_Q1/outward/work"
+  output_filename: "final_output.fasta"
+  read_subset_k: 27
+  use_batch: false
+
+decision:
+  automate: true
+  strategy: "example_strategy"
+  limits:
+    compute_time: 5 hours
+    iterations: 5

@@ -1,0 +1,4 @@
+s3_path,priority
+s3://nao-testing/outward-assembly-test-data/pipeline-end-to-end/simulated-abcbd-reads.fastq.zst,1
+s3://nao-testing/outward-assembly-test-data/pipeline-end-to-end/simulated-abcbd-reads.fastq.zst,2
+s3://nao-testing/outward-assembly-test-data/pipeline-end-to-end/simulated-abcbd-reads.fastq.zst,3
