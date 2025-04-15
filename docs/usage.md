@@ -52,7 +52,7 @@ Table of Contents:
 
 The primary entrypoint to outward assembly is the Python function `outward_assembly` in `outward_assembly/pipeline.py`; a command line interface does not (yet) exist. See the docstring of `outward_assembly` for a detailed description of keyword parameters. The required parameters are:
 
-* The path to a seed sequence(s) (fasta) to assemble outward from;
+* A path to the seed sequence(s) file (fasta) to assemble outward from;
 * A list of s3 paths of reads to assemble. Reads must be in [SIZ format](./algorithm_details.md#input-data);
 * Path for output contigs.
 
@@ -295,22 +295,22 @@ Assessing the quality of the assembled contigs depends heavily on the specific r
 
 ### Next steps
 
-If the assembly results are not satisfactory, consider adjusting parameters or input data for subsequent runs. Based on empirical observations, increasing the amount of input data or decreasing the `kmer size` used by BBDuk often helps improve results when assembly fails or produces short contigs.
+If the assembly results are not satisfactory, consider adjusting parameters or input data for subsequent runs. Based on empirical observations, increasing the amount of input data or decreasing the kmer size used by BBDuk often helps improve results when assembly fails or produces short contigs.
 
 Here are some common scenarios and potential solutions:
 
 #### Issue: Seed fails to assemble or contig is too short
 *   **Verify seed quality:** Ensure the chosen seed sequence is accurate and error-free, as explained in the [Choosing a good seed](#choosing-a-good-seed) section. 
 *   **Increase input data:** The target genome corresponding to the seed might not be sufficiently represented in the current dataset. Try adding more sequencing data.
-*   **Decrease BBDuk `kmer size`:** If the seed potentially contains sequencing errors relative to the target genome, a smaller `kmer size` might allow BBDuk to identify relevant reads by matching shorter, error-free segments.
+*   **Decrease BBDuk kmer size:** If the seed potentially contains sequencing errors relative to the target genome, a smaller kmer size might allow BBDuk to identify relevant reads by matching shorter, error-free segments.
 
 #### Issue: Contigs are unexpectedly long
 
-*   **Increase BBDuk `kmer size`:** If the initial `kmer size` is too small, BBDuk might select reads based on kmers that are not specific enough to the target genome, leading to off-target assembly. Increasing the `kmer size` reduces the likelihood of off-target assembly.
+*   **Increase BBDuk kmer size:** If the initial kmer size is too small, BBDuk might select reads based on kmers that are not specific enough to the target genome, leading to off-target assembly. Increasing the kmer size reduces the likelihood of off-target assembly.
 
 #### Issue: Uncertainty about contig correctness
 *   **Increase input data:** Assembling with more data can increase confidence in the results by providing stronger evidence for the assembled sequence.
-*   **Adjust BBDuk `kmer size`:** Experiment with different `kmer size` values (both increasing and decreasing) as described above to see how it impacts the resulting contigs.
+*   **Adjust BBDuk kmer size:** Experiment with different kmer size values (both increasing and decreasing) as described above to see how it impacts the resulting contigs.
 *   **Perform downstream validation:** Use the analyses suggested in the [Evaluating contig quality](#evaluating-contig-quality) section (e.g., BLAST, read alignment) to further assess the contigs.
 
 ## Tips
