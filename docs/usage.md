@@ -124,8 +124,6 @@ s3://nao-testing/outward-assembly-test-data/siz/simulated-abcbd-reads_1_div0003.
 
 *Note: The bucket name (`"nao-testing"`) and prefixes shown above are only examples. You must replace them with your actual S3 bucket name and the specific prefixes for your SIZ-formatted read files.*
 
-Please be aware that this script is configured by default for read data stored in S3, utilizing the `s3_files_with_prefix` function. If your data is located on your local filesystem, you will need to adapt the script by replacing the call to `s3_files_with_prefix` with a list containing the actual local paths to your read files.
-
 We've provided an example script, `example_normal_assembly.py`, that demonstrates how to use outward assembly in *normal* mode with the *local* profile. To use this script, the user should do the following:
 
 1. Create a copy of`example_normal_assembly.py` that can be modified.
