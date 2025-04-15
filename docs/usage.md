@@ -51,9 +51,12 @@ Table of Contents:
 ## Overview
 
 The primary entrypoint to outward assembly is the Python function `outward_assembly` in `outward_assembly/pipeline.py`; a command line interface does not (yet) exist. See the docstring of `outward_assembly` for a detailed description of keyword parameters. The required parameters are:
-* The path to a seed sequence (fasta) to assemble outward from;
+
+* The path to a seed sequence(s) (fasta) to assemble outward from;
 * A list of s3 paths of reads to assemble. Reads must be in [SIZ format](./algorithm_details.md#input-data);
 * Path for output contigs.
+
+*Note: You are allowed to have multiple seed sequences in your fasta file.*
 
 Using the `outward_assembly` function as described above would be considered running outward assembly in *normal* mode, whereas our *automated* mode builds abstractions on top of this function to allow for more complex workflows. Specifically, *automated* mode automates the labor-intensive iterative process of:
 
@@ -66,16 +69,16 @@ Outward assembly generates lots of intermediate results in its working directory
 ## Profiles
 
 ### Local profile
-The local profile utilizes the resources on your current machine.
+The *local* profile utilizes the resources on your current machine.
 
 #### Why use local profile?
 Best suited for situations with a small number of reads.
 
 #### Usage
-Set `use_batch = false` in the outward_assembly parameters to trigger the local profile.
+Set `use_batch = false` in the outward_assembly parameters to trigger the *local* profile.
 
 ### Batch profile
-The batch profile allows scaling to large numbers of reads by utilizing AWS Batch jobs.
+The *batch* profile allows scaling to large numbers of reads by utilizing AWS Batch jobs.
 
 #### Why use batch profile?
 Ideal for scenarios where large datasets (potentially tens to hundreds of billions of reads) need processing, which is impractical on a single machine.
@@ -94,23 +97,54 @@ To run the outward assembly command, set `use_batch = true`, and specify your ba
 
 The usage of the *normal* mode in outward assembly requires that the user call the outward assembly function with the appropriate parameters. The only setup that the user needs to do is to generate a list of s3 paths to their reads.
 
-We've provided the function `s3_files_with_prefix` in `io_helpers.py` to assist you in generating a list of s3 paths. E.g. to get paths to split files from three demux sets:
+To generate the required list of S3 paths for your input reads, you can use the helper function `s3_files_with_prefix` located in `outward_assembly/io_helpers.py`. This function takes an S3 bucket name and a prefix string, and returns a list of all object paths within that bucket matching the prefix.
+
+Here's an example demonstrating how to use it to collect paths corresponding to multiple prefixes:
 
 ```python
+# Example: List of prefixes identifying different sets of read files
 prefixes = [
 	"outward-assembly-test-data/siz/simulated-abcbd-reads_1",
 	"outward-assembly-test-data/siz/simulated-abcbd-reads_2",
 ]
-paths = [p for prefix in prefixes for p in s3_files_with_prefix("nao-testing", prefix)]
+# Example: S3 bucket containing the read files
+bucket = "nao-testing"
+
+# Generate the list of full S3 paths for all files matching the prefixes
+paths = [p for prefix in prefixes for p in s3_files_with_prefix(bucket, prefix)]
 ```
 
-where `outward-assembly-test-data/siz/simulated-abcbd-reads_1` would correspond to all reads with that specific prefix for the first demux set, for example:
+For example, providing the prefix `"outward-assembly-test-data/siz/simulated-abcbd-reads_1"` would retrieve all files in the `"nao-testing"` bucket that start with this string, potentially including:
 
 ```
 s3://nao-testing/outward-assembly-test-data/siz/simulated-abcbd-reads_1_div0001.fastq.zst
 s3://nao-testing/outward-assembly-test-data/siz/simulated-abcbd-reads_1_div0002.fastq.zst
 s3://nao-testing/outward-assembly-test-data/siz/simulated-abcbd-reads_1_div0003.fastq.zst
 ```
+
+*Note: The bucket name (`"nao-testing"`) and prefixes shown above are only examples. You must replace them with your actual S3 bucket name and the specific prefixes for your SIZ-formatted read files.*
+
+Please be aware that this script is configured by default for read data stored in S3, utilizing the `s3_files_with_prefix` function. If your data is located on your local filesystem, you will need to adapt the script by replacing the call to `s3_files_with_prefix` with a list containing the actual local paths to your read files.
+
+We've provided an example script, `example_normal_assembly.py`, that demonstrates how to use outward assembly in *normal* mode with the *local* profile. To use this script, the user should do the following:
+
+1. Create a copy of`example_normal_assembly.py` that can be modified.
+2. Update the parameters in the script to your desired values, specifically:
+    * `data_dir`: where the results will be stored locally.
+    * `seed_path`: the path to the seed sequence(s) file (fasta format).
+    * `bucket_name`: the name of the s3 bucket where the siz files are stored.
+    * `prefixes`: the path(s) to the siz files on s3, using just the prefix(es) of the siz files.
+3. Run the script.
+
+By default, the example script enables adapter trimming using the file `./default_adapters.fasta` (it is *highly recommended* to use adapter trimming if your reads haven't been cleaned). To disable adapter trimming, simply remove the `adapters_path` parameter from the script.
+
+The example script showcases a basic configuration for simplicity. The `outward_assembly` function accepts numerous other parameters for more fine-grained control. Some notable optional parameters include:
+
+*   `warm_start_path`
+*   `high_freq_kmers_path`
+*   `read_subset_k`
+
+For a comprehensive list of all available parameters and detailed explanations of their usage, please refer to the docstring within the `outward_assembly` function definition in `outward_assembly/pipeline.py`. Additionally, the [Algorithm Details](./algorithm_details.md) document provides context for parameters like `high_freq_kmers_path`.
 
 ### Automated mode
 
@@ -217,58 +251,69 @@ The difference between running outward assembly in *normal* and *automated* mode
 
 ## Analyzing results
 
-To aid in analyzing the results of outward assembly, we highlight topics below that may be of interest to users.
+This section provides guidance on analyzing the results generated by outward assembly.
 
-### Relevant output
-Below are some files that may come in handy when analyzing the results of outward assembly:
+### Relevant output files
 
-- Assembly metrics (`<work-dir>/<tmp-dir>/assembly_metrics.json`): A json file that contains information about the outward assembly run.
-  - Inner iteration metrics (list of dictionaries):
-    - Read pair count (int): The read_pair_counts description will vary based on the user's input. By default, it is the number of read pairs that are extracted from BBDuk. In the situation that the user passed in an adapter path or high frequency kmers, this is the number of reads that were adapter trimmed or frequency filtered, respectively.
-    - Iteration number (int): The iteration number of the current run.
-    - Contig count (int): The number of contigs in the current run.
-    - Longest contig (int): The length of the longest contig in the current run.
-    - Total contig length (int): The total length of all contigs in the current run.
-  - Final read pair count (int): Read pair count after the last iteration.
-  - Final contig count (int): Contig count after the last iteration.
-  - Final contig total length (int): Total length of the final contigs.
-- Output contigs (`<work-dir>/final_output.fasta` or `<work-dir>/<tmp-dir>/final_output.fasta`): The assemblies produced by outward assembly.
-  - Fasta file, where the header contains the following statistics (generated by Megahit):
-    - First element: Contig ID
-    - Second element: Megahit flag
-    - Third element: Coverage
-    - Fourth element: Contig length
-- Filtered reads (`<work-dir>/<tmp-dir>/reads_<1,2>.fastq`): The reads BBDuk successfully filtered from the original data.
-- Intermediate assemblies (`<work-dir>/<tmp-dir>/megahit_out_iter<i>-<j>`): The reads BBDuk successfully filtered from the original data.
+Several output files provide valuable information for analyzing the results of an outward assembly run:
 
-### Judging the quality of your contig(s)
+- **Assembly Metrics:** (`<work_dir>/<tmp_dir>/assembly_metrics.json`)
+    *   A JSON file containing metadata and metrics about the assembly process.
+    *   `inner_iteration_metrics` (list of dictionaries): Metrics recorded for each inner iteration.
+        *   `read_pair_count` (int): The number of read pairs processed in the iteration. The exact meaning depends on the pipeline configuration:
+            *   Default: Number of read pairs extracted by BBDuk.
+            *   With adapter trimming: Number of read pairs remaining after adapter trimming.
+            *   With frequency filtering: Number of read pairs remaining after frequency filtering.
+        *   `iteration_number` (int): The index of the inner iteration.
+        *   `contig_count` (int): The number of contigs generated in this iteration.
+        *   `longest_contig` (int): The length of the longest contig generated in this iteration.
+        *   `total_contig_length` (int): The sum of lengths of all contigs generated in this iteration.
+    *   `final_read_pair_count` (int): The `read_pair_count` from the final inner iteration.
+    *   `final_contig_count` (int): The `contig_count` from the final inner iteration.
+    *   `final_contig_total_length` (int): The `total_contig_length` from the final inner iteration.
 
-Judging the quality of your contigs is a hard task as it depends on why you're using the software. Regardless, there maybe some analyses that you find helpful:
-- BLAST the contig
-- Align the reads produced by the algorithm back to the contig
-- Align the seed back to the contig
-- Compare the intermediate assemblies produced by megahit to your current contig
+- **Output Contigs:** (`<work_dir>/final_output.fasta` or `<work_dir>/<tmp_dir>/final_output.fasta`)
+    *   The final assembled sequences produced by the algorithm.
+    *   Format: FASTA file. Each header line contains statistics generated by Megahit:
+        *   Field 1: Contig ID
+        *   Field 2: Megahit flag
+        *   Field 3: Estimated coverage
+        *   Field 4: Contig length
 
-### Figuring out next steps
+- **Filtered Reads:** (`<work_dir>/<tmp_dir>/reads_<1,2>.fastq`)
+    *   The read pairs successfully filtered by BBDuk from the input data, used for the assembly process.
 
-In general, if your seed didn't assemble well, you should always be trying to increase the amount of data and lowering the kmer size for BBDuk if you're not getting good results. This has been an empirical observation, but it seems to work well.
+- **Intermediate Assemblies:** (`<work_dir>/<tmp_dir>/megahit_out_iter<i>-<j>/`)
+    *   Directory containing output files from each Megahit sub-iteration (`<i>` is the outer iteration, `<j>` is the sub-iteration). Includes intermediate contig files (e.g., `final.contigs.fa`). Useful for debugging or analyzing assembly progression.
 
-Below we outline some of the issues that you may run into and how to fix them.
+### Evaluating contig quality
 
-#### Seed didn't assemble
-If your seed didn't assembly, first make sure that the [sequence you chose is not error-prone](#choosing-a-good-seed).
+Assessing the quality of the assembled contigs depends heavily on the specific research goals. However, the following analyses can be helpful in evaluating the results:
 
-#### Seed assembled but contigs are short
-In the situation that the contig is short, you might want to try some of the following:
-- Increase the data that you're using (it's possible that the seed's genome is not present in the current data)
-- Decrease the kmer size for bbduk (given that your seed has a sequencing error, a smaller kmer size may allow you to forgo the portion of the sequence with a sequencing error, and allow you to find the seed's genome)
+*   Perform a BLAST search with the final contig(s) against relevant databases.
+*   Align the filtered reads (used in the assembly) back to the final contig(s).
+*   Align the initial seed sequence back to the final contig(s).
+*   Compare the final contig(s) with intermediate assemblies generated by Megahit during the process.
 
-#### Seed assembled but contigs are too long
-In the situation that the contig matches what you'd expect, this is good! However, if it's something you don't expect, you can try the following:
-- Increase the kmer size for bbduk (if your kmer size is too small, you're less likely to hit a kmer unique to your seed's genome)
+### Next steps
 
-#### Seeds assembled but I'm unsure about the assignment
-If you are unsure about the assignment of your contig, you can always increase the data, and fix the other parameters.
+If the assembly results are not satisfactory, consider adjusting parameters or input data for subsequent runs. Based on empirical observations, increasing the amount of input data or decreasing the `kmer size` used by BBDuk often helps improve results when assembly fails or produces short contigs.
+
+Here are some common scenarios and potential solutions:
+
+#### Issue: Seed fails to assemble or contig is too short
+*   **Verify seed quality:** Ensure the chosen seed sequence is accurate and error-free, as explained in the [Choosing a good seed](#choosing-a-good-seed) section. 
+*   **Increase input data:** The target genome corresponding to the seed might not be sufficiently represented in the current dataset. Try adding more sequencing data.
+*   **Decrease BBDuk `kmer size`:** If the seed potentially contains sequencing errors relative to the target genome, a smaller `kmer size` might allow BBDuk to identify relevant reads by matching shorter, error-free segments.
+
+#### Issue: Contigs are unexpectedly long
+
+*   **Increase BBDuk `kmer size`:** If the initial `kmer size` is too small, BBDuk might select reads based on kmers that are not specific enough to the target genome, leading to off-target assembly. Increasing the `kmer size` reduces the likelihood of off-target assembly.
+
+#### Issue: Uncertainty about contig correctness
+*   **Increase input data:** Assembling with more data can increase confidence in the results by providing stronger evidence for the assembled sequence.
+*   **Adjust BBDuk `kmer size`:** Experiment with different `kmer size` values (both increasing and decreasing) as described above to see how it impacts the resulting contigs.
+*   **Perform downstream validation:** Use the analyses suggested in the [Evaluating contig quality](#evaluating-contig-quality) section (e.g., BLAST, read alignment) to further assess the contigs.
 
 ## Tips
 ### Choosing a good seed
