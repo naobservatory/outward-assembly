@@ -12,13 +12,11 @@ from .io_helpers import (
     PathLike,
     S3Files,
     _count_lines,
-    dir_to_s3_paths,
     process_s3_paths,
 )
 from .pipeline_steps import (
     CURRENT_CONTIGS,
     READS_1_FASTQ,
-    READS_FILTERED_1_FASTQ,
     _adapter_trim_iter_reads,
     _assemble_contigs,
     _choose_best_subiter,
@@ -42,7 +40,7 @@ class InnerIterationMetrics(TypedDict):
     """
 
     iteration: int
-    read_count: int
+    read_pair_count: int
     contig_count: int
     longest_contig_length: int
     total_contig_length: int
@@ -57,13 +55,12 @@ class AssemblyMetrics(TypedDict):
     inner_iterations: List[InnerIterationMetrics]
     final_contig_count: int
     final_longest_contig_length: int
-    final_read_pair_counts: int
+    final_total_contig_length: int
+    final_read_pair_count: int
     work_dir: str
 
 
-def _compute_iteration_metrics(
-    iter: int, workdir: PathLike, high_freq_kmers_path: Optional[PathLike]
-) -> InnerIterationMetrics:
+def _compute_iteration_metrics(iter: int, workdir: Path) -> InnerIterationMetrics:
     """Collect metrics for the current iteration.
 
     Args:
@@ -73,21 +70,17 @@ def _compute_iteration_metrics(
     Returns:
         InnerIterationMetrics: A dictionary containing the metrics for the current iteration.
     """
-    # If frequency filtering was done, we need to use the filtered reads, otherwise we use the unfiltered reads
-    if high_freq_kmers_path:
-        read_pair_counts = _count_lines(workdir / READS_FILTERED_1_FASTQ) // 4
-    else:
-        # This line captures both if the user has no adapter trimming
-        # or if they do since we call this function after _adapter_trim_iter_reads is called,
-        # which stores the adapter trimmed reads in READS_1_FASTQ
-        read_pair_counts = _count_lines(workdir / READS_1_FASTQ) // 4
+    # Note that _adapter_trim_iter_reads puts trimmed reads in READS_{1/2}_FASTQ, so if the
+    # user has adapter trimming enabled and we call this function after trimming adapters,
+    # we'll be counting adapter-trimmed reads -- which is presumably what we want to count.
+    read_pair_count = _count_lines(workdir / READS_1_FASTQ) // 4
 
     # Get contig stats
     contig_stats = _fasta_longest_total(workdir / CURRENT_CONTIGS)
 
     return {
         "iteration": iter,
-        "read_pair_counts": read_pair_counts,
+        "read_pair_count": read_pair_count,
         "contig_count": sum(1 for _ in SeqIO.parse(workdir / CURRENT_CONTIGS, "fasta")),
         "longest_contig_length": contig_stats.longest,
         "total_contig_length": contig_stats.total,
@@ -110,12 +103,12 @@ def _compute_assembly_metrics(
         AssemblyMetrics: A dictionary containing the final statistics for the assembly process.
     """
     return {
+        "total_time": time.time() - start_time,
         "inner_iterations": inner_iterations,
-        "final_read_pair_counts": inner_iterations[-1]["read_pair_counts"],
         "final_contig_count": inner_iterations[-1]["contig_count"],
         "final_longest_contig_length": inner_iterations[-1]["longest_contig_length"],
         "final_total_contig_length": inner_iterations[-1]["total_contig_length"],
-        "total_time": time.time() - start_time,
+        "final_read_pair_count": inner_iterations[-1]["read_pair_count"],
         "work_dir": str(workdir),
     }
 
@@ -134,7 +127,7 @@ def _outward_main_loop(
     warm_start_path: Optional[PathLike],
     use_batch: bool,
     batch_workdir: Optional[PathLike],
-    batch_queue: str,
+    batch_queue: Optional[str],
     tower_token: Optional[str] = None,
 ) -> AssemblyMetrics:
     """Main filter reads => assemble => filter contigs loop.
@@ -195,13 +188,14 @@ def _outward_main_loop(
             workdir, iter, seed_seqs, include_overlaps=overlap_contig_filtering
         )
         logger.debug("Found seed-containing contigs")
-        # Store iteration metrics
-        inner_iterations.append(
-            _compute_iteration_metrics(iter, workdir, high_freq_kmers_path)
-        )
 
-        # Step 4: check if we made progress this iteration
-        if _choose_best_subiter(workdir, iter):
+        # Step 4: check if we made progress this iteration and compute metrics.
+        # We compute metrics after calling _choose_best_subiter, since
+        # _choose_best_subiter updates the current contigs fasta, which is
+        # read by _compute_iteration_metrics.
+        progressed_this_iteration = _choose_best_subiter(workdir, iter)
+        inner_iterations.append(_compute_iteration_metrics(iter, workdir))
+        if progressed_this_iteration:
             if iter < max_iters:
                 logger.debug(f"Progressed in iteration {iter}; continuing")
             else:
@@ -356,4 +350,3 @@ def outward_assembly(
             shutil.rmtree(workdir)
         else:
             logger.info(f"Debug: Keeping working directory at {workdir}")
-
