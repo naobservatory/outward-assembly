@@ -8,11 +8,19 @@ Briefly, the outward assembly software has two profiles (read our [usage docs](.
 
 In the situation that you want to use the *batch* profile, you will need to follow the [instructions below to install the required software](#optional-batch-profile).
 
-Additionally, if one would like generate high frequency k-mers to use for the outward assembly software, you can follow the [instructions below to install the required software](#optional-kmc).
+
+Optionally, you can provide a list of high-frequency k-mers to the outward assembly algorithm to filter reads prior to assembly (refer to [high-frequency k-mers and chimeras](./algorithm_details.md#high-frequency-kmers-and-chimeras) for the rationale). Generating this list requires the external tool [KMC](https://github.com/refresh-bio/KMC), which is not installed by default. If you need this capability, please follow the [KMC installation instructions below](#optional-kmc).
 
 ## Basic requirements
 
-Baseline required dependencies are specified in the conda configuration file `outward_assembly_env.yml`. Use conda or the conda-like package manager of your choice. From the base repository directory: 
+First, clone the repository:
+
+```
+git clone https://github.com/naobservatory/outward-assembly.git
+cd outward-assembly
+```
+
+Then, download the baseline required dependencies, which are specified in the conda configuration file `outward_assembly_env.yml`. Use conda or the conda-like ([mamba](https://mamba.readthedocs.io/en/latest/user_guide/mamba.html), [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html), [miniconda](https://www.anaconda.com/docs/getting-started/miniconda/main), etc.) package manager of your choice. From the base repository directory: 
 
 ```
 conda env create -f outward_assembly_env.yml
@@ -20,6 +28,8 @@ conda activate OutwardAssembly
 # install outward assembly itself in dev profile in the conda env
 pip install -e .
 ```
+
+You are now ready to run outward assembly in the *local* profile. See the [usage docs](./usage.md) for more information on how to run outward assembly.
 
 ## (Optional) Batch profile
 
