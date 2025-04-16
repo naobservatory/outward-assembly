@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Fields"
+  given-names: "Evan"
+  orcid: "https://orcid.org/0000-0003-1147-1687"
+- family-names: "Bhasin"
+  given-names: "Harmon"
+  orcid: "https://orcid.org/0009-0003-1569-5749"
+- family-names: "Teo"
+  given-names: "Ryan"
+  orcid: "https://orcid.org/0000-0003-0416-8436"
+- family-names: "Kaufman"
+  given-names: "Jeff"
+  orcid: "https://orcid.org/0009-0002-6137-5124"
+- family-names: "McLaren"
+  given-names: "Michael"
+  orcid: "https://orcid.org/0000-0003-1575-473X"
+title: "Outward Assembly"
+version: 0.1.0
+date-released: 2025-04-16
+url: "https://github.com/naobservatory/outward-assembly"
