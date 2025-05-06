@@ -102,15 +102,28 @@ def _compute_assembly_metrics(
     Returns:
         AssemblyMetrics: A dictionary containing the final statistics for the assembly process.
     """
-    return {
+    # Initialize all required fields, with defaults for the case of empty inner_iterations
+    summary: AssemblyMetrics = {
         "total_time": time.time() - start_time,
         "inner_iterations": inner_iterations,
-        "final_contig_count": inner_iterations[-1]["contig_count"],
-        "final_longest_contig_length": inner_iterations[-1]["longest_contig_length"],
-        "final_total_contig_length": inner_iterations[-1]["total_contig_length"],
-        "final_read_pair_count": inner_iterations[-1]["read_pair_count"],
+        "final_contig_count": 0,
+        "final_longest_contig_length": 0,
+        "final_total_contig_length": 0,
+        "final_read_pair_count": 0,
         "work_dir": str(workdir),
     }
+
+    # Update with actual values if we have iteration data
+    if len(inner_iterations) > 0:
+        for k in [
+            "contig_count",
+            "longest_contig_length",
+            "total_contig_length",
+            "read_pair_count",
+        ]:
+            summary["final_" + k] = inner_iterations[-1][k]
+
+    return summary
 
 
 def _outward_main_loop(
