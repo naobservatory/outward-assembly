@@ -1,12 +1,13 @@
 import pytest
 import yaml
+
+from outward_assembly.actions import decrease_k, increase_k, next_priority
 from outward_assembly.decision_manager import DecisionManager
 from outward_assembly.strategy_helper import (
     CONTIG_COUNT,
     LONGEST_CONTIG,
     READ_PAIR_COUNT,
 )
-from outward_assembly.actions import decrease_k, next_priority, increase_k
 
 # Sample YAML configuration for testing
 YAML_CONFIG = """
@@ -16,6 +17,8 @@ decision:
 """
 
 
+@pytest.mark.fast
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "outward_assembly_metrics, expected_actions",
     [

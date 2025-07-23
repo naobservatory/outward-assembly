@@ -1,15 +1,21 @@
 import logging
+import os
 import sys
 from pathlib import Path
+
 import pytest
-from outward_assembly.pipeline import outward_assembly
-import os
 from Bio import SeqIO
 from dotenv import load_dotenv
+
+from outward_assembly.pipeline import outward_assembly
 
 load_dotenv()
 
 
+@pytest.mark.slow
+@pytest.mark.e2e
+@pytest.mark.requires_tools
+@pytest.mark.requires_aws
 @pytest.mark.parametrize(
     "use_batch,seed_config",
     [
