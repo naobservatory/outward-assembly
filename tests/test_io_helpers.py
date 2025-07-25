@@ -3,6 +3,8 @@ import pytest
 from outward_assembly.io_helpers import process_s3_paths, _count_lines
 
 
+@pytest.mark.fast
+@pytest.mark.unit
 def test_process_s3_paths():
     """Processing s3 paths should produce unique valid filenames."""
     s3_paths = [
@@ -19,11 +21,15 @@ def test_process_s3_paths():
         assert len(rec.filename) <= 245  # need extra space for other prefixes/suffixes
 
 
+@pytest.mark.fast
+@pytest.mark.unit
 def test_process_s3_paths_invalid():
     with pytest.raises(ValueError):
         process_s3_paths(["s3://not/valid/extension.jpg"])
 
 
+@pytest.mark.fast
+@pytest.mark.unit
 def test_count_lines(temp_empty_file):
     assert _count_lines(temp_empty_file) == 0
     with open(temp_empty_file, "a") as f:

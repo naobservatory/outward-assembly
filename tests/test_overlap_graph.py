@@ -1,9 +1,12 @@
-from Bio.Seq import Seq
 import pytest
-from outward_assembly.overlap_graph import overlap_inds, seqs_overlap
+from Bio.Seq import Seq
+
 from outward_assembly.basic_seq_operations import is_subseq
+from outward_assembly.overlap_graph import overlap_inds, seqs_overlap
 
 
+@pytest.mark.fast
+@pytest.mark.unit
 def test_overlap_inds_multiple_seeds():
     """Test that overlap_inds correctly identifies sequences
     in connected components with seed-containing sequences."""

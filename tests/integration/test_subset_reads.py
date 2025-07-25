@@ -1,17 +1,23 @@
 import os
 from pathlib import Path
+
 import pytest
+from dotenv import load_dotenv
+
+from outward_assembly.io_helpers import _count_lines, process_s3_paths
 from outward_assembly.pipeline_steps import (
     _subset_split_files_batch,
     _subset_split_files_local,
 )
-from outward_assembly.io_helpers import process_s3_paths, _count_lines
-from dotenv import load_dotenv
 
 load_dotenv()
 
 
 # Runs the test twice, once with "use_batch=True" and once with "use_batch=False", where use_batch indicates whether to use batch mode
+@pytest.mark.slow
+@pytest.mark.integration
+@pytest.mark.requires_tools
+@pytest.mark.requires_aws
 @pytest.mark.parametrize("use_batch", [True, False])
 def test_subset_reads(temp_workdir, use_batch):
     """Integration test of _subset_split_files.

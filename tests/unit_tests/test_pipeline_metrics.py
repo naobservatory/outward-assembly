@@ -1,10 +1,13 @@
 import time
 from pathlib import Path
+
 import pytest
 
 from outward_assembly.pipeline import _compute_assembly_metrics
 
 
+@pytest.mark.fast
+@pytest.mark.unit
 def test_compute_assembly_metrics_empty_iterations():
     """Test that _compute_assembly_metrics handles empty inner_iterations correctly."""
     workdir = Path("/test/dir")

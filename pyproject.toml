@@ -9,5 +9,16 @@ description = "Assembly tool for growing contigs outward from a seed sequence"
 readme = "README.md"
 requires-python = ">=3.12"
 
+[tool.pytest.ini_options]
+markers = [
+    "fast",
+    "slow", 
+    "unit",
+    "integration",
+    "e2e: end to end",
+    "requires_tools: Requires bioinformatics tools (megahit, bbduk, etc.)",
+    "requires_aws: Requires AWS credentials and services"
+]
+
 [tool.setuptools]
 packages = ["outward_assembly"]

@@ -1,6 +1,10 @@
+import pytest
+
 from outward_assembly.actions import increase_k, decrease_k, next_priority
 
 
+@pytest.mark.fast
+@pytest.mark.unit
 def test_increase_k():
     """Test the increase_k action."""
     curr_exec_state = {"read_subset_k": 10}
@@ -10,6 +14,8 @@ def test_increase_k():
     assert curr_exec_state["read_subset_k"] == 15
 
 
+@pytest.mark.fast
+@pytest.mark.unit
 def test_decrease_k():
     """Test the decrease_k action."""
     curr_exec_state = {"read_subset_k": 10}
@@ -19,6 +25,8 @@ def test_decrease_k():
     assert curr_exec_state["read_subset_k"] == 7
 
 
+@pytest.mark.fast
+@pytest.mark.unit
 def test_next_priority():
     """Test the next_priority action."""
     curr_exec_state = {"dataset_priority": 1}

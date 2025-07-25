@@ -1,13 +1,13 @@
 import os
 import tempfile
 from pathlib import Path
+
 import pytest
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from outward_assembly.pipeline_steps import _subset_contigs
-from outward_assembly.pipeline import CURRENT_CONTIGS
 
 
 @pytest.fixture
@@ -36,6 +36,8 @@ def temp_workdir_with_contigs():
         yield workdir
 
 
+@pytest.mark.fast
+@pytest.mark.unit
 def test_subset_contigs_multiple_seeds(temp_workdir_with_contigs):
     """Test _subset_contigs with multiple seed sequences."""
     workdir = temp_workdir_with_contigs
@@ -65,6 +67,8 @@ def test_subset_contigs_multiple_seeds(temp_workdir_with_contigs):
     assert "contig5" not in contig_ids
 
 
+@pytest.mark.fast
+@pytest.mark.unit
 def test_subset_contigs_with_overlaps(temp_workdir_with_contigs):
     """Test _subset_contigs with include_overlaps parameter."""
     workdir = temp_workdir_with_contigs

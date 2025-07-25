@@ -1,13 +1,17 @@
+import pytest
 from Bio import SeqIO
+from dotenv import load_dotenv
 
 from outward_assembly.io_helpers import process_s3_paths
 from outward_assembly.kmer_freq_filter import _high_freq_kmers_split_files
-import os
-from dotenv import load_dotenv
 
 load_dotenv()
 
 
+@pytest.mark.slow
+@pytest.mark.integration
+@pytest.mark.requires_tools
+@pytest.mark.requires_aws
 def test_high_freq_kmer(temp_workdir):
     """Integration test of _high_freq_kmers_split_files.
 
