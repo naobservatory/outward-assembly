@@ -91,17 +91,6 @@ Though each Batch job runs for just a few seconds, running outward assembly at s
 ### Seqera Tower Credentials
 Using the Batch profile requires a Seqera Tower [access token](https://docs.seqera.io/platform-cloud/api/overview). See or create a token in the Seqera [console](https://cloud.seqera.io/tokens).
 
-Occasionally, jobs may fail due to exceeding the [container pull rate limit with Wave](https://docs.seqera.io/wave/api).  To overcome this, you can provide a Tower access token to increase your rate limit by 4x. You can obtain an access token from the Seqera Platform. For more instructions, please refer to this [page](https://github.com/naobservatory/mgs-workflow/blob/master/docs/troubleshooting.md#api-container-errors).
-
-You can provide your user token to Nextflow by setting the token as an environment variable:
-
-```bash
-export TOWER_ACCESS_TOKEN=your_tower_access_token
-```
-When running the pipeline with Nextflow, the token will be automatically used.
-
-Alternatively, the pipeline also supports an optional `tower_token` parameter that can be used to explicitly provide the Tower access token. Passing `tower_token='your_token'` to relevant functions will also configure Nextflow to use it properly.
-
 ## (Optional) KMC
 
 The `OutwardAssembly` conda environment does not include the kmer counting tool KMC. Kmer counting with KMC is not required for outward assembly, but you may find it helpful to use KMC to generate a list of high frequency kmers. `kmer_freq_filter.py` contains helper functions for computing high frequency kmers using KMC and creating frequency-filtered subsets of input reads. By default, these functions look for KMC's executable at `outward-assembly/non-conda-deps/kmc3/bin`. KMC binaries are available on [GitHub](https://github.com/refresh-bio/KMC/releases). 
