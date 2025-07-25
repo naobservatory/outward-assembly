@@ -3,7 +3,6 @@ non-conda-deps/**
 **.pyc
 
 .nextflow*
-nextflow/nextflow.config
 .env
 
 fastp*
