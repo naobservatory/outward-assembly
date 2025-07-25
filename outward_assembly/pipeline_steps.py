@@ -355,7 +355,7 @@ def _subset_split_files_local(
     cmd_file.unlink()
 
 
-def _create_nextflow_dynamic_config(
+def _create_nextflow_config(
     workdir: Path,
     batch_workdir: PathLike,
     s3_records_file: Path,
@@ -364,10 +364,10 @@ def _create_nextflow_dynamic_config(
     batch_queue: str,
     tower_token: str,
 ) -> Path:
-    """Create dynamic Nextflow configuration for a specific run.
+    """Create Nextflow configuration file for a specific run.
 
     Args:
-        workdir: Working directory for this run
+        workdir: Working directory for this run. Overwrites <workdir>/run_config.nf
         batch_workdir: S3 path for Nextflow work directory
         s3_records_file: Path to file containing S3 paths
         ref_fasta_path: Path to reference fasta
@@ -378,9 +378,6 @@ def _create_nextflow_dynamic_config(
     Returns:
         Path to created configuration file
     """
-    config_path = workdir / "run_config.nf"
-
-    # Get path to the static config file relative to this dynamic config
     nextflow_dir = Path(__file__).resolve().parent.parent / "nextflow"
 
     config_content = textwrap.dedent(
@@ -397,11 +394,12 @@ def _create_nextflow_dynamic_config(
         // Process configuration
         process.queue = '{batch_queue}'
         
-        // Include all static configuration files from the repo
+        // Include all static configuration files from the OA repo
         includeConfig "{nextflow_dir}/static_configs.config"
         """
     ).strip()
 
+    config_path = workdir / "run_config.nf"
     with open(config_path, "w") as f:
         f.write(config_content)
 
@@ -444,7 +442,7 @@ def _subset_split_files_batch(
             f.write(f"{rec.filename}\t{rec.s3_path}\n")
 
     # Create dynamic configuration
-    dynamic_config = _create_nextflow_dynamic_config(
+    dynamic_config = _create_nextflow_config(
         workdir=workdir,
         batch_workdir=batch_workdir,
         s3_records_file=s3_records_file,

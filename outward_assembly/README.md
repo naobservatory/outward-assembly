@@ -17,7 +17,7 @@ Hence, *normal* mode will only have one outer iteration and a variable number of
 
 ## Testing
 
-We use the [pytest](https://docs.pytest.org/en/stable/) testing framework. Tests should be annotated with the markers defined in [pyproject.toml](pyproject.toml).
+We use the [pytest](https://docs.pytest.org/en/stable/) testing framework. Tests should be annotated with the markers defined in [pyproject.toml](../pyproject.toml).
 
 You can run the full test suite with `pytest` in the base repo dir, or `pytest -s` to see the real time logs. The full suite includes integration and end-to-end tests, and can be quite slow. You may find it useful to run just the tests with certain markers, e.g. `pytest -m unit` to run just the unit tests.
 
