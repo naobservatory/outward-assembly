@@ -261,7 +261,7 @@ def outward_assembly(
         use_batch: Whether to use batch mode for outward assembly or local implementation
         batch_workdir: If using batch mode, you must provide an s3 path to a work directory for the batch job
         batch_queue: If using batch mode, you must provide a batch queue name
-        tower_token: Optional Seqera user token to increase API rate limits
+        tower_token: Seqera access token
         high_freq_kmers_path: Path to fasta file containing high frequency kmers to use
             for per-iteration frequency filtering, or None to disable per-iteration
             filtering. If you want to frequecy filter all your reads once up front, see
@@ -313,7 +313,7 @@ def outward_assembly(
 
     if use_batch and batch_workdir is None:
         raise ValueError("batch_workdir must be provided if use_batch is True")
-    if use_batch and not batch_workdir.startswith("s3://"):
+    if use_batch and not str(batch_workdir).startswith("s3://"):
         raise ValueError("batch_workdir must be an s3 path")
     if use_batch and batch_queue is None:
         raise ValueError("batch_queue must be provided if use_batch is True")

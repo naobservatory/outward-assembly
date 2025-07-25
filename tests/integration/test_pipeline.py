@@ -72,14 +72,9 @@ def test_pipeline(temp_workdir, use_batch, seed_config):
                     "use_batch": True,
                     "batch_workdir": os.getenv("BATCH_WORKDIR"),
                     "batch_queue": os.getenv("BATCH_QUEUE"),
+                    "tower_token": os.getenv("TOWER_ACCESS_TOKEN"),
                 }
             )
-            if os.getenv("TOWER_ACCESS_TOKEN"):
-                kwargs.update(
-                    {
-                        "tower_token": os.getenv("TOWER_ACCESS_TOKEN"),
-                    }
-                )
 
         outward_assembly(**kwargs)
 

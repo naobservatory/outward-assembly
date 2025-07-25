@@ -357,15 +357,15 @@ def _subset_split_files_local(
 
 def _create_nextflow_dynamic_config(
     workdir: Path,
-    batch_workdir: str,
+    batch_workdir: PathLike,
     s3_records_file: Path,
     ref_fasta_path: Path,
     read_subset_k: int,
     batch_queue: str,
-    tower_token: Optional[str] = None
+    tower_token: str,
 ) -> Path:
     """Create dynamic Nextflow configuration for a specific run.
-    
+
     Args:
         workdir: Working directory for this run
         batch_workdir: S3 path for Nextflow work directory
@@ -373,17 +373,18 @@ def _create_nextflow_dynamic_config(
         ref_fasta_path: Path to reference fasta
         read_subset_k: K-mer size for filtering
         batch_queue: AWS Batch queue name
-        tower_token: Optional Seqera Tower token
-        
+        tower_token: Seqera Tower token
+
     Returns:
         Path to created configuration file
     """
     config_path = workdir / "run_config.nf"
-    
+
     # Get path to the static config file relative to this dynamic config
     nextflow_dir = Path(__file__).resolve().parent.parent / "nextflow"
-    
-    config_content = textwrap.dedent(f"""
+
+    config_content = textwrap.dedent(
+        f"""
         // Dynamic configuration for this run
         params {{
             base_dir = "{batch_workdir}"
@@ -391,24 +392,19 @@ def _create_nextflow_dynamic_config(
             ref_fasta_path = "{ref_fasta_path}"
             kmer = {read_subset_k}
         }}
+        tower.accessToken = "{tower_token}"
         
         // Process configuration
         process.queue = '{batch_queue}'
         
         // Include all static configuration files from the repo
         includeConfig "{nextflow_dir}/static_configs.config"
-        """).strip()
-    
-    # Add tower configuration
-    if tower_token:
-        config_content += f"\ntower.accessToken = '{tower_token}'"
-    else:
-        # Explicitly disable tower when no token is provided
-        config_content += f"\ntower.enabled = false"
-    
+        """
+    ).strip()
+
     with open(config_path, "w") as f:
         f.write(config_content)
-    
+
     return config_path
 
 
@@ -419,7 +415,7 @@ def _subset_split_files_batch(
     workdir: PathLike,
     batch_workdir: PathLike,
     batch_queue: str,
-    tower_token: Optional[str] = None,
+    tower_token: str,
 ) -> None:
     """Use parallel BBDuk by running Nextflow (which uses AWS Batch) to subset reads from split files sharing kmers with ref. By
     default, the order of filtered reads will match the order of inputs, which makes
@@ -432,6 +428,7 @@ def _subset_split_files_batch(
         workdir: Working directory for output
         batch_workdir: S3 path to batch work directory
         batch_queue: Batch queue name
+        tower_token: Seqera Tower access token
     """
     ref_fasta_path = Path(ref_fasta_path)
     workdir = Path(workdir)
@@ -454,7 +451,7 @@ def _subset_split_files_batch(
         ref_fasta_path=ref_fasta_path,
         read_subset_k=read_subset_k,
         batch_queue=batch_queue,
-        tower_token=tower_token
+        tower_token=tower_token,
     )
 
     # Get paths to Nextflow components
@@ -462,10 +459,7 @@ def _subset_split_files_batch(
     nextflow_main = nextflow_dir / "main.nf"
 
     # Run Nextflow with single dynamic config (which includes static configs)
-    nextflow_cmd = [
-        "nextflow", "run", str(nextflow_main),
-        "-c", str(dynamic_config)
-    ]
+    nextflow_cmd = ["nextflow", "run", str(nextflow_main), "-c", str(dynamic_config)]
 
     result = subprocess.run(nextflow_cmd, capture_output=True, text=True)
 
