@@ -89,7 +89,7 @@ Though each Batch job runs for just a few seconds, running outward assembly at s
 [^1]: In the situation that the instructions change, [this link](https://github.com/naobservatory/mgs-workflow/blob/9fe05a5ca9ce7cbc886927788f22c71ff9f26443/docs/batch.md) should be used as reference for the version of the docs used at the time.
 
 ### Seqera Tower Credentials
-Using the Batch profile requires a Seqera Tower [access token](https://docs.seqera.io/platform-cloud/api/overview). See or create a token in the Seqera [console](https://cloud.seqera.io/tokens).
+Using the Batch profile requires a Seqera Tower [access token](https://docs.seqera.io/platform-cloud/api/overview). See your tokens or create a new one in the Seqera [console](https://cloud.seqera.io/tokens).
 
 ## (Optional) KMC
 
