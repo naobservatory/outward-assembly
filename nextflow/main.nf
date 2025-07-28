@@ -66,14 +66,14 @@ workflow {
 
     // Filter out empty reads
     filtered_bbduk_reads = bbduk_reads
-      .filter { sample_div, fastq_files -> 
+      .filter { _sample_div, fastq_files -> 
           fastq_files[0].size() > 0 && fastq_files[1].size() > 0
       }
 
     fwd_reads = filtered_bbduk_reads
         .toSortedList { a, b -> a[0] <=> b[0] }  // Sort by sample_div
         .flatMap()  // Flatten the sorted list back to a channel
-        .map { sample_div, fastq_files -> 
+        .map { _sample_div, fastq_files -> 
             fastq_files[0]  // This selects the first FASTQ file (ending with _1.fastq)
         }
         .collect()
@@ -81,7 +81,7 @@ workflow {
     rev_reads = filtered_bbduk_reads
         .toSortedList { a, b -> a[0] <=> b[0] }  // Sort by sample_div
         .flatMap()  // Flatten the sorted list back to a channel
-        .map { sample_div, fastq_files -> 
+        .map { _sample_div, fastq_files -> 
             fastq_files[1]  // This selects the second FASTQ file (ending with _2.fastq)
         }
         .collect()
