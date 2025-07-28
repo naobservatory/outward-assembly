@@ -58,42 +58,46 @@ process CONCAT_READS{
 }
 
 workflow {
-  reads = Channel.fromPath(params.s3_files).splitCsv(header: false, sep: "\t"). map {
-    row -> tuple(row[0], row[1])
-  }
-  bbduk_reads = BBDUK(reads, params.ref_fasta_path, params.kmer)
-
-  // Filter out empty reads
-  filtered_bbduk_reads = bbduk_reads
-    .filter { sample_div, fastq_files -> 
-        fastq_files[0].size() > 0 && fastq_files[1].size() > 0
+  main:
+    reads = Channel.fromPath(params.s3_files).splitCsv(header: false, sep: "\t"). map {
+      row -> tuple(row[0], row[1])
     }
+    bbduk_reads = BBDUK(reads, params.ref_fasta_path, params.kmer)
 
-  fwd_reads = filtered_bbduk_reads
-      .toSortedList { a, b -> a[0] <=> b[0] }  // Sort by sample_div
-      .flatMap()  // Flatten the sorted list back to a channel
-      .map { sample_div, fastq_files -> 
-          fastq_files[0]  // This selects the first FASTQ file (ending with _1.fastq)
+    // Filter out empty reads
+    filtered_bbduk_reads = bbduk_reads
+      .filter { _sample_div, fastq_files -> 
+          fastq_files[0].size() > 0 && fastq_files[1].size() > 0
       }
-      .collect()
 
-  rev_reads = filtered_bbduk_reads
-      .toSortedList { a, b -> a[0] <=> b[0] }  // Sort by sample_div
-      .flatMap()  // Flatten the sorted list back to a channel
-      .map { sample_div, fastq_files -> 
-          fastq_files[1]  // This selects the second FASTQ file (ending with _2.fastq)
-      }
-      .collect()
+    fwd_reads = filtered_bbduk_reads
+        .toSortedList { a, b -> a[0] <=> b[0] }  // Sort by sample_div
+        .flatMap()  // Flatten the sorted list back to a channel
+        .map { _sample_div, fastq_files -> 
+            fastq_files[0]  // This selects the first FASTQ file (ending with _1.fastq)
+        }
+        .collect()
 
-  CONCAT_READS(fwd_reads, rev_reads)
+    rev_reads = filtered_bbduk_reads
+        .toSortedList { a, b -> a[0] <=> b[0] }  // Sort by sample_div
+        .flatMap()  // Flatten the sorted list back to a channel
+        .map { _sample_div, fastq_files -> 
+            fastq_files[1]  // This selects the second FASTQ file (ending with _2.fastq)
+        }
+        .collect()
+
+    CONCAT_READS(fwd_reads, rev_reads)
 
   publish:
-    CONCAT_READS.out.final_fwd_read >> "results"
-    CONCAT_READS.out.final_rev_read >> "results"
+    fwd_reads = CONCAT_READS.out.final_fwd_read
+    rev_reads = CONCAT_READS.out.final_rev_read
 }
 
 output {
-  "results" {
+  fwd_reads {
+    path "results"
+  }
+  rev_reads {
     path "results"
   }
 }

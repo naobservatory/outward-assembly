@@ -17,26 +17,13 @@ Hence, *normal* mode will only have one outer iteration and a variable number of
 
 ## Testing
 
-We use the [pytest framework](https://docs.pytest.org/en/stable/) to write tests.
+We use the [pytest](https://docs.pytest.org/en/stable/) testing framework. Tests should be annotated with the markers defined in [pyproject.toml](../pyproject.toml).
 
-You can run tests with `pytest` in the base repo dir, or `pytest -s` to see the real time logs from the `outward_assembly` end to end test.
+You can run the full test suite with `pytest` in the base repo dir, or `pytest -s` to see the real time logs. The full suite includes integration and end-to-end tests, and can be quite slow. You may find it useful to run just the tests with certain markers, e.g. `pytest -m unit` to run just the unit tests.
 
-We currently have all tests enabled to run in both local and batch mode, hence you'll have to have gone through the [installation process](../docs/installation.md#optional-batch-profile) for batch mode.
+Some integration and end-to-end tests run in both local and Batch mode, hence you'll have to have gone through the [Batch installation process](../docs/installation.md#optional-batch-profile) to run the full test suite. 
 
-To run the tests, copy the below`.env.example` file to `.env` and update the variables.
-
-```.env.example
-BATCH_QUEUE='my-batch-queue' # Update this to your aws batch queue
-BATCH_WORKDIR='s3://my-bucket/my-outward-workdir' # Update this to your s3 directory for batch
-```
-
-Then, run the following command in the base repo dir:
-
-```
-pytest -s
-```
-
-to run all tests.
+To run the tests that use Batch and AWS, copy `.env.example`  to `.env` and fill in your compute resources and credentials. (Alternatively, you can directly export the variables defined in `.env` as environment variables.)
 
 ## Improvements
 * [Google doc](https://docs.google.com/document/d/1AiQUWMNUhbwYZBqLleZ1K-XXnND84z0tURidb2OD8sw/edit?tab=t.0) with some ideas for performance and sensitivity enhancements.

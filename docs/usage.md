@@ -83,7 +83,7 @@ Ideal for scenarios where large datasets (potentially tens to hundreds of billio
 *For most users, we recommend using the local profile and just scaling up the number of compute resources that you're using (e.g. pick an EC2 instance with more cores and memory). We recommend that you do this and only use the batch profile if you find that the local profile is too slow.*
 
 #### Usage
-To run the outward assembly command, set `use_batch = true`, and specify your batch queue (`batch_queue`) and an s3 path to a work directory (`batch_workdir`).
+Call `outward_assembly` with `use_batch = true`, making sure to pass values for `batch_workdir`, `batch_queue`, and `tower_token`.
 
 ## Modes
 

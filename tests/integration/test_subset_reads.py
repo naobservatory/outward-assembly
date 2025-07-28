@@ -45,6 +45,7 @@ def test_subset_reads(temp_workdir, use_batch):
             {
                 "batch_workdir": os.getenv("BATCH_WORKDIR"),
                 "batch_queue": os.getenv("BATCH_QUEUE"),
+                "tower_token": os.getenv("TOWER_ACCESS_TOKEN"),
             }
         )
         _subset_split_files_batch(**kwargs)

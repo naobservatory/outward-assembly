@@ -88,17 +88,8 @@ Though each Batch job runs for just a few seconds, running outward assembly at s
 
 [^1]: In the situation that the instructions change, [this link](https://github.com/naobservatory/mgs-workflow/blob/9fe05a5ca9ce7cbc886927788f22c71ff9f26443/docs/batch.md) should be used as reference for the version of the docs used at the time.
 
-## (Optional) Seqera Tower Integration
-Occasionally, jobs may fail due to exceeding the [container pull rate limit with Wave](https://docs.seqera.io/wave/api).  To overcome this, you can provide a Tower access token to increase your rate limit by 4x. You can obtain an access token from the Seqera Platform. For more instructions, please refer to this [page](https://github.com/naobservatory/mgs-workflow/blob/master/docs/troubleshooting.md#api-container-errors).
-
-You can provide your user token to Nextflow by setting the token as an environment variable:
-
-```bash
-export TOWER_ACCESS_TOKEN=your_tower_access_token
-```
-When running the pipeline with Nextflow, the token will be automatically used.
-
-Alternatively, the pipeline also supports an optional `tower_token` parameter that can be used to explicitly provide the Tower access token. Passing `tower_token='your_token'` to relevant functions will also configure Nextflow to use it properly.
+### Seqera Tower Credentials
+Using the Batch profile requires a Seqera Tower [access token](https://docs.seqera.io/platform-cloud/api/overview). See your tokens or create a new one in the Seqera [console](https://cloud.seqera.io/tokens).
 
 ## (Optional) KMC
 
