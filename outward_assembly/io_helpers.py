@@ -1,7 +1,8 @@
-from os import listdir
+import csv
+import re
+import os
 from pathlib import Path
 from typing import Iterable, List, NamedTuple
-import csv
 
 import boto3
 import yaml
@@ -80,7 +81,7 @@ def s3_files_with_prefix(bucket: str, prefix: str) -> list[str]:
 
 def _read_files_in_dir(dir: PathLike) -> List[str]:
     """List .fastq.zst files in a directory."""
-    return [s for s in listdir(dir) if s.endswith(".fastq.zst")]
+    return [s for s in os.listdir(dir) if s.endswith(".fastq.zst")]
 
 
 def dir_to_s3_paths(dir: PathLike, s3_prefix: str) -> List[str]:
@@ -151,3 +152,36 @@ def get_s3_paths_by_priority(input_csv: str, priority: int) -> list[str]:
             if int(row["priority"]) == priority:
                 filtered_paths.append(row["s3_path"])
     return filtered_paths
+
+
+def concat_and_tag_fastq(input_files: list[str], output_file: str) -> None:
+    """
+    Concatenates a list of input fastq into a combined fastq,
+    appending the input filename (with _{1/2}.fastq trimmed) to header lines.
+
+    Args:
+        input_files: A list of paths to the input files.
+        output_file: The path to the output file to be created.
+
+    Raises:
+        RuntimeError: If any of the input files do not exist or an IO error occurs.
+    """
+    try:
+        with open(output_file, "w") as outfile:
+            for filename in input_files:
+                if os.path.getsize(filename) == 0:
+                    continue
+                base_filename = os.path.basename(filename)
+                # Remove trailing _{1/2}.fastq
+                sample_name = re.sub(r"_[12]\.fastq$", "", base_filename)
+
+                with open(filename, "r") as infile:
+                    # Identify headers by line number, not leading @ since quality
+                    # lines can also start with @
+                    for i, line in enumerate(infile):
+                        if i % 4 == 0:
+                            outfile.write(f"{line.rstrip()} {sample_name}\n")
+                        else:
+                            outfile.write(line)
+    except (IOError, FileNotFoundError) as e:
+        raise RuntimeError(f"Error processing files: {e}") from e
