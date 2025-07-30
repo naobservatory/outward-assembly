@@ -8,6 +8,7 @@ from Bio import SeqIO
 from dotenv import load_dotenv
 
 from outward_assembly.pipeline import outward_assembly
+from outward_assembly.pipeline_steps import NF_PROFILE_ENV_VAR
 
 load_dotenv()
 
@@ -25,7 +26,7 @@ load_dotenv()
     ],
     ids=["batch-single-seed", "local-single-seed", "local-multi-seed"],
 )
-def test_pipeline(temp_workdir, use_batch, seed_config):
+def test_pipeline(temp_workdir, use_batch, seed_config, monkeypatch):
     """End to end test of full pipeline, following a simulated genome with
     structure ABCBD -- note the repeated B -- with three combinations:
     1. Batch mode with single seed
@@ -67,6 +68,7 @@ def test_pipeline(temp_workdir, use_batch, seed_config):
         }
 
         if use_batch:
+            monkeypatch.setenv(NF_PROFILE_ENV_VAR, "localtest")
             kwargs.update(
                 {
                     "use_batch": True,
