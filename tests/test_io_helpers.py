@@ -1,6 +1,4 @@
 import pytest
-import tempfile
-import os
 
 from outward_assembly.io_helpers import (
     process_s3_paths,
@@ -48,58 +46,55 @@ def test_count_lines(temp_empty_file):
 
 @pytest.mark.fast
 @pytest.mark.unit
-def test_concat_and_tag_fastq_forward_reads():
-    with tempfile.TemporaryDirectory() as temp_dir:
-        sample1_fwd = os.path.join(temp_dir, "sample1_1.fastq")
-        sample2_fwd = os.path.join(temp_dir, "sample2_1.fastq")
-        output_fwd = os.path.join(temp_dir, "combined_1.fastq")
+def test_concat_and_tag_fastq_forward_reads(temp_workdir):
+    sample1_fwd = temp_workdir / "sample1_1.fastq"
+    sample2_fwd = temp_workdir / "sample2_1.fastq"
+    output_fwd = temp_workdir / "combined_1.fastq"
 
-        # Create test forward read files
-        with open(sample1_fwd, "w") as f:
-            f.write("@read1\nACGT\n+\nIIII\n@read2\nTGCA\n+\nIIII\n")
+    # Create test forward read files
+    with open(sample1_fwd, "w") as f:
+        f.write("@read1\nACGT\n+\nIIII\n@read2\nTGCA\n+\nIIII\n")
 
-        with open(sample2_fwd, "w") as f:
-            f.write("@read3\nGGGG\n+\nIIII\n")
+    with open(sample2_fwd, "w") as f:
+        f.write("@read3\nGGGG\n+\nIIII\n")
 
-        concat_and_tag_fastq([sample1_fwd, sample2_fwd], output_fwd)
+    concat_and_tag_fastq([sample1_fwd, sample2_fwd], output_fwd)
 
-        with open(output_fwd, "r") as f:
-            content = f.read()
+    with open(output_fwd, "r") as f:
+        content = f.read()
 
-        expected = "@read1 sample1\nACGT\n+\nIIII\n@read2 sample1\nTGCA\n+\nIIII\n@read3 sample2\nGGGG\n+\nIIII\n"
-        assert content == expected
-
-
-@pytest.mark.fast
-@pytest.mark.unit
-def test_concat_and_tag_fastq_empty_file():
-    with tempfile.TemporaryDirectory() as temp_dir:
-        empty_fwd = os.path.join(temp_dir, "empty_1.fastq")
-        sample_fwd = os.path.join(temp_dir, "sample_1.fastq")
-        output_fwd = os.path.join(temp_dir, "combined_1.fastq")
-
-        # Create empty and non-empty files
-        with open(empty_fwd, "w") as f:
-            pass  # Empty file
-
-        with open(sample_fwd, "w") as f:
-            f.write("@read1\nACGT\n+\nIIII\n")
-
-        concat_and_tag_fastq([empty_fwd, sample_fwd], output_fwd)
-
-        with open(output_fwd, "r") as f:
-            content = f.read()
-
-        expected = "@read1 sample\nACGT\n+\nIIII\n"
-        assert content == expected
+    expected = "@read1 sample1\nACGT\n+\nIIII\n@read2 sample1\nTGCA\n+\nIIII\n@read3 sample2\nGGGG\n+\nIIII\n"
+    assert content == expected
 
 
 @pytest.mark.fast
 @pytest.mark.unit
-def test_concat_and_tag_fastq_file_not_found():
-    with tempfile.TemporaryDirectory() as temp_dir:
-        nonexistent_fwd = os.path.join(temp_dir, "nonexistent_1.fastq")
-        output_fwd = os.path.join(temp_dir, "combined_1.fastq")
+def test_concat_and_tag_fastq_empty_file(temp_workdir):
+    empty_fwd = temp_workdir / "empty_1.fastq"
+    sample_fwd = temp_workdir / "sample_1.fastq"
+    output_fwd = temp_workdir / "combined_1.fastq"
 
-        with pytest.raises(RuntimeError, match="Error processing files"):
-            concat_and_tag_fastq([nonexistent_fwd], output_fwd)
+    # Create empty and non-empty files
+    with open(empty_fwd, "w") as f:
+        pass  # Empty file
+
+    with open(sample_fwd, "w") as f:
+        f.write("@read1\nACGT\n+\nIIII\n")
+
+    concat_and_tag_fastq([empty_fwd, sample_fwd], output_fwd)
+
+    with open(output_fwd, "r") as f:
+        content = f.read()
+
+    expected = "@read1 sample\nACGT\n+\nIIII\n"
+    assert content == expected
+
+
+@pytest.mark.fast
+@pytest.mark.unit
+def test_concat_and_tag_fastq_file_not_found(temp_workdir):
+    nonexistent_fwd = temp_workdir / "nonexistent_1.fastq"
+    output_fwd = temp_workdir / "combined_1.fastq"
+
+    with pytest.raises(RuntimeError, match="Error processing files"):
+        concat_and_tag_fastq([nonexistent_fwd], output_fwd)
