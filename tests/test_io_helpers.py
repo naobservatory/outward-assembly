@@ -98,3 +98,15 @@ def test_concat_and_tag_fastq_file_not_found(temp_workdir):
 
     with pytest.raises(RuntimeError, match="Error processing files"):
         concat_and_tag_fastq([nonexistent_fwd], output_fwd)
+
+
+@pytest.mark.fast
+@pytest.mark.unit
+def test_concat_and_tag_fastq_bad_line_count(temp_workdir):
+    # 3 line input file can't be a legal fastq
+    infile = temp_workdir / "sample_1.fastq"
+    outfile = temp_workdir / "out.fastq"
+    with open(infile, "w") as f:
+        f.write("Chocolate\nVanilla\nStrawberry\n")
+    with pytest.raises(ValueError):
+        concat_and_tag_fastq([infile], outfile)

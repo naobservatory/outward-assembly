@@ -1,4 +1,5 @@
 import csv
+import itertools
 import re
 import os
 from pathlib import Path
@@ -181,10 +182,12 @@ def concat_and_tag_fastq(input_files: list[PathLike], output_file: PathLike) -> 
                 with open(filename, "r") as infile:
                     # Identify headers by line number, not leading @ since quality
                     # lines can also start with @
-                    for i, line in enumerate(infile):
-                        if i % 4 == 0:
-                            outfile.write(f"{line.rstrip()} {sample_name}\n")
-                        else:
-                            outfile.write(line)
+                    for identifier, sequence, plus, quality in itertools.batched(
+                        infile, 4
+                    ):
+                        outfile.write(f"{identifier.rstrip()} {sample_name}\n")
+                        outfile.writelines([sequence, plus, quality])
     except (IOError, FileNotFoundError) as e:
         raise RuntimeError(f"Error processing files: {e}") from e
+    except ValueError as e:
+        raise ValueError("FASTQ file had number of lines not a multiple of 4") from e
