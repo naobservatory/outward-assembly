@@ -346,6 +346,8 @@ def _subset_split_files_local(
             workdir / f"{rec.filename}_{read_num}.fastq" for rec in s3_records
         ]
         concat_and_tag_fastq(split_files, output_path)
+        for split_file in split_files:
+            (workdir / split_file).unlink()
 
     cmd_file.unlink()
 
