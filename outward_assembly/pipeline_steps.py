@@ -4,11 +4,12 @@ import textwrap
 from multiprocessing import cpu_count
 from pathlib import Path
 from typing import List, NamedTuple, Optional
+
 from Bio import SeqIO
 from Bio.Seq import Seq
 
 from .basic_seq_operations import is_subseq
-from .io_helpers import PathLike, S3Files
+from .io_helpers import PathLike, S3Files, concat_and_tag_fastq
 from .overlap_graph import overlap_inds
 
 # File names used across functions
@@ -344,13 +345,7 @@ def _subset_split_files_local(
         split_files = [
             workdir / f"{rec.filename}_{read_num}.fastq" for rec in s3_records
         ]
-
-        with open(output_path, "wb") as out:
-            for split_file in split_files:
-                split_path = workdir / split_file
-                with open(split_path, "rb") as f:
-                    shutil.copyfileobj(f, out)
-                split_path.unlink()
+        concat_and_tag_fastq(split_files, output_path)
 
     cmd_file.unlink()
 

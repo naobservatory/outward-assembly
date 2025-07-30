@@ -154,10 +154,13 @@ def get_s3_paths_by_priority(input_csv: str, priority: int) -> list[str]:
     return filtered_paths
 
 
-def concat_and_tag_fastq(input_files: list[str], output_file: str) -> None:
+def concat_and_tag_fastq(input_files: list[PathLike], output_file: PathLike) -> None:
     """
-    Concatenates a list of input fastq into a combined fastq,
+    Concatenates a list of input FASTQ into a combined FASTQ,
     appending the input filename (with _{1/2}.fastq trimmed) to header lines.
+
+    Note: trimmed filenames are added to every fourth line;
+    i.e. all records must be exactly four lines long.
 
     Args:
         input_files: A list of paths to the input files.
