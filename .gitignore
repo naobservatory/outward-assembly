@@ -4,6 +4,7 @@ non-conda-deps/**
 outward_assembly.egg-info/*
 
 .nextflow*
+.pytest-nf-work/**
 .env
 
 fastp*

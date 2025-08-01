@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import textwrap
@@ -31,6 +32,8 @@ MEGAHIT_FINAL_CONTIGS = "final.contigs.fa"
 MEGAHIT_FILTERED_CONTIGS = "contigs_filtered.fasta"
 CHOSEN_SUBITER_FLAG = "chose_this_subiter"
 LOG_FILE = "log.txt"
+
+NF_PROFILE_ENV_VAR = "NEXTFLOW_PROFILE"
 
 
 class FastaStats(NamedTuple):
@@ -454,7 +457,16 @@ def _subset_split_files_batch(
     nextflow_main = nextflow_dir / "main.nf"
 
     # Run Nextflow with single dynamic config (which includes static configs)
-    nextflow_cmd = ["nextflow", "run", str(nextflow_main), "-c", str(dynamic_config)]
+    profile = os.environ.get(NF_PROFILE_ENV_VAR, "standard")
+    nextflow_cmd = [
+        "nextflow",
+        "run",
+        str(nextflow_main),
+        "-c",
+        str(dynamic_config),
+        "-profile",
+        profile,
+    ]
 
     result = subprocess.run(nextflow_cmd, capture_output=True, text=True)
 

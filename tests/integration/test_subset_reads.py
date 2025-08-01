@@ -8,6 +8,7 @@ from outward_assembly.io_helpers import _count_lines, process_s3_paths
 from outward_assembly.pipeline_steps import (
     _subset_split_files_batch,
     _subset_split_files_local,
+    NF_PROFILE_ENV_VAR,
 )
 
 load_dotenv()
@@ -19,7 +20,7 @@ load_dotenv()
 @pytest.mark.requires_tools
 @pytest.mark.requires_aws
 @pytest.mark.parametrize("use_batch", [True, False])
-def test_subset_reads(temp_workdir, use_batch):
+def test_subset_reads(temp_workdir, use_batch, monkeypatch):
     """Integration test of _subset_split_files.
     We pass in two split files with two read pairs each. The dummy contigs match the first
     forward read and last reverse read, so we should get two read pairs out.
@@ -41,6 +42,7 @@ def test_subset_reads(temp_workdir, use_batch):
     }
 
     if use_batch:
+        monkeypatch.setenv(NF_PROFILE_ENV_VAR, "localtest")
         kwargs.update(
             {
                 "batch_workdir": os.getenv("BATCH_WORKDIR"),
