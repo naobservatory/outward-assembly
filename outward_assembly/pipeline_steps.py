@@ -457,9 +457,16 @@ def _subset_split_files_batch(
     nextflow_main = nextflow_dir / "main.nf"
 
     # Run Nextflow with single dynamic config (which includes static configs)
-    nextflow_cmd = ["nextflow", "run", str(nextflow_main), "-c", str(dynamic_config)]
-    if profile := os.environ.get(NF_PROFILE_ENV_VAR):
-        nextflow_cmd.extend(["-profile", profile])
+    profile = os.environ.get(NF_PROFILE_ENV_VAR, "standard")
+    nextflow_cmd = [
+        "nextflow",
+        "run",
+        str(nextflow_main),
+        "-c",
+        str(dynamic_config),
+        "-profile",
+        profile,
+    ]
 
     result = subprocess.run(nextflow_cmd, capture_output=True, text=True)
 
