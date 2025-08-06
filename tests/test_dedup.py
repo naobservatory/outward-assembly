@@ -9,13 +9,20 @@ from outward_assembly.dedup import (
     EMPTY_KMER_SENTINEL_HASH,
     ORIENT_STRICT,
     ORIENT_TOLERANT,
+    DedupParams,
     MinimizerParams,
     ReadPair,
     _assign_to_buckets,
+    _build_graph,
     _canonical_kmer,
     _extract_minimizer,
     _get_bucket_keys,
+    _mismatch_count,
+    _read_pairs_equivalent,
     _reverse_complement,
+    _select_exemplar_by_centrality,
+    _sequences_match,
+    deduplicate_read_pairs,
 )
 
 
@@ -54,6 +61,23 @@ class TestHelperFunctions:
         assert _canonical_kmer("ACGT") == "ACGT"  # ACGT vs ACGT (palindrome)
         assert _canonical_kmer("AAAC") == "AAAC"  # AAAC vs GTTT
         assert _canonical_kmer("GTTT") == "AAAC"  # Same result
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_mismatch_count_equal_length(self):
+        assert _mismatch_count("AAAA", "AAAA") == 0
+        assert _mismatch_count("AAAA", "TTTT") == 4
+        assert _mismatch_count("AAAA", "AAAT") == 1
+        assert _mismatch_count("ACGT", "TGCA") == 4
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_mismatch_count_unequal_length(self):
+        # Truncates to shorter length
+        assert _mismatch_count("AAAA", "AA") == 0  # Only compares first 2
+        assert _mismatch_count("AA", "AAAA") == 0  # Only compares first 2
+        assert _mismatch_count("AAAA", "TT") == 2  # Compares first 2, both differ
+        assert _mismatch_count("AAAT", "TT") == 2  # AA vs TT
 
 
 class TestMinimizerExtraction:
@@ -148,6 +172,107 @@ class TestMinimizerExtraction:
         assert all(isinstance(key, tuple) and len(key) == 2 for key in keys)
 
 
+class TestSequenceMatching:
+    """Test sequence matching functions."""
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_sequences_match_exact(self):
+        params = DedupParams(max_offset=1, max_error_frac=0.01)
+
+        assert _sequences_match("AAAA", "AAAA", params) is True
+        assert _sequences_match("ACGT", "ACGT", params) is True
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_sequences_match_with_offset_1(self):
+        params = DedupParams(max_offset=1, max_error_frac=0.01)
+
+        # Left shift: XAAAA vs AAAA (X removed)
+        assert _sequences_match("GAAAA", "AAAA", params) is True
+        # Right shift: AAAA vs XAAAA (X added at start)
+        assert _sequences_match("AAAA", "GAAAA", params) is True
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_sequences_match_no_match_large_offset(self):
+        params = DedupParams(max_offset=1, max_error_frac=0.01)
+
+        # Should not match with offset > 1
+        assert _sequences_match("GGAAAA", "AAAA", params) is False
+        assert _sequences_match("AAAA", "GGAAAA", params) is False
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_sequences_match_within_error_threshold(self):
+        params = DedupParams(max_offset=0, max_error_frac=0.1)  # 10% error allowed
+
+        # 1 error in 10bp = 10% error rate
+        assert _sequences_match("AAAAAAAAAA", "AAAAAAAAAG", params) is True
+        # 2 errors in 10bp = 20% error rate (should fail)
+        assert _sequences_match("AAAAAAAAAA", "AAAAAAAGGG", params) is False
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_sequences_match_exceeds_threshold(self):
+        params = DedupParams(max_offset=0, max_error_frac=0.01)  # 1% error allowed
+
+        # 1 error in 10bp = 10% error rate (should fail)
+        assert _sequences_match("AAAAAAAAAA", "AAAAAAAAAG", params) is False
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_read_pairs_equivalent_standard_orientation(self):
+        params = DedupParams(
+            max_offset=1, max_error_frac=0.01, orientation=ORIENT_STRICT
+        )
+
+        rp1 = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
+        rp2 = ReadPair("read2", "AAAA", "TTTT", "IIII", "IIII")
+        rp3 = ReadPair("read3", "AAAA", "CCCC", "IIII", "IIII")
+
+        assert _read_pairs_equivalent(rp1, rp2, params) is True
+        assert _read_pairs_equivalent(rp1, rp3, params) is False
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_read_pairs_equivalent_swapped_tolerant(self):
+        # In tolerant mode, should match F1-R1 vs R2-F2
+        params = DedupParams(
+            max_offset=1, max_error_frac=0.01, orientation=ORIENT_TOLERANT
+        )
+
+        rp1 = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
+        rp2 = ReadPair("read2", "TTTT", "AAAA", "IIII", "IIII")  # Swapped F/R
+
+        assert _read_pairs_equivalent(rp1, rp2, params) is True
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_read_pairs_equivalent_swapped_strict(self):
+        # In strict mode, should NOT match swapped orientation
+        params = DedupParams(
+            max_offset=1, max_error_frac=0.01, orientation=ORIENT_STRICT
+        )
+
+        rp1 = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
+        rp2 = ReadPair("read2", "TTTT", "AAAA", "IIII", "IIII")  # Swapped F/R
+
+        assert _read_pairs_equivalent(rp1, rp2, params) is False
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_read_pairs_equivalent_no_match(self):
+        params = DedupParams(
+            max_offset=1, max_error_frac=0.01, orientation=ORIENT_TOLERANT
+        )
+
+        rp1 = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
+        rp2 = ReadPair("read2", "GGGG", "CCCC", "IIII", "IIII")
+
+        assert _read_pairs_equivalent(rp1, rp2, params) is False
+
+
 class TestBucketing:
     """Test bucketing functions."""
 
@@ -225,6 +350,104 @@ class TestBucketing:
             assert any(len(bucket_indices) == 2 for bucket_indices in buckets.values())
 
 
+class TestGraphOperations:
+    """Test graph-based operations."""
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_build_graph_no_duplicates(self):
+        params = DedupParams(max_offset=0, max_error_frac=0.0)
+        min_params = MinimizerParams(num_windows=1, window_len=10, kmer_len=3)
+
+        rp1 = ReadPair("read1", "A" * 10, "T" * 10, "I" * 10, "I" * 10)
+        rp2 = ReadPair("read2", "G" * 10, "C" * 10, "I" * 10, "I" * 10)
+        read_pairs = [rp1, rp2]
+
+        buckets = _assign_to_buckets(read_pairs, min_params, params.orientation)
+        graph, comparisons = _build_graph(read_pairs, buckets, params)
+
+        assert graph.number_of_edges() == 0
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_build_graph_with_duplicates(self):
+        params = DedupParams(max_offset=1, max_error_frac=0.01)
+        min_params = MinimizerParams(num_windows=1, window_len=10, kmer_len=3)
+
+        rp1 = ReadPair("read1", "A" * 10, "T" * 10, "I" * 10, "I" * 10)
+        rp2 = ReadPair("read2", "A" * 10, "T" * 10, "I" * 10, "I" * 10)  # Identical
+        read_pairs = [rp1, rp2]
+
+        buckets = _assign_to_buckets(read_pairs, min_params, params.orientation)
+        graph, comparisons = _build_graph(read_pairs, buckets, params)
+
+        assert graph.number_of_edges() >= 1
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_build_graph_no_repeated_comparisons(self):
+        # Ensure we don't compare the same pair twice across buckets
+        params = DedupParams(max_offset=1, max_error_frac=0.01)
+        min_params = MinimizerParams(num_windows=2, window_len=10, kmer_len=3)
+
+        # Create reads that will appear in multiple buckets
+        rp1 = ReadPair("read1", "A" * 20, "T" * 20, "I" * 20, "I" * 20)
+        rp2 = ReadPair("read2", "A" * 20, "T" * 20, "I" * 20, "I" * 20)
+        read_pairs = [rp1, rp2]
+
+        buckets = _assign_to_buckets(read_pairs, min_params, params.orientation)
+        graph, comparisons = _build_graph(read_pairs, buckets, params)
+
+        # Should only compare once despite appearing in multiple buckets
+        assert comparisons == 1
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_select_exemplar_single_node(self):
+        graph = nx.Graph()
+        graph.add_node(0)
+
+        rp = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
+        cluster = [rp]
+        cluster_indices = [0]
+
+        exemplar = _select_exemplar_by_centrality(cluster, cluster_indices, graph)
+        assert exemplar == "read1"
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_select_exemplar_linear_graph(self):
+        # A-B-C linear graph should choose B (most central)
+        graph = nx.Graph()
+        graph.add_edges_from([(0, 1), (1, 2)])
+
+        rp1 = ReadPair("readA", "AAAA", "TTTT", "IIII", "IIII")
+        rp2 = ReadPair("readB", "AAAA", "TTTT", "IIII", "IIII")
+        rp3 = ReadPair("readC", "AAAA", "TTTT", "IIII", "IIII")
+        cluster = [rp1, rp2, rp3]
+        cluster_indices = [0, 1, 2]
+
+        exemplar = _select_exemplar_by_centrality(cluster, cluster_indices, graph)
+        assert exemplar == "readB"  # Should choose central node
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_select_exemplar_tie_breaking(self):
+        # Tie-breaking by quality, then length, then ID
+        graph = nx.Graph()
+        graph.add_edges_from([(0, 1)])
+
+        # Lower quality read
+        rp1 = ReadPair("readZ", "AAAA", "TTTT", "!!!!", "!!!!")  # Lower quality scores
+        # Higher quality read
+        rp2 = ReadPair("readA", "AAAA", "TTTT", "IIII", "IIII")  # Higher quality scores
+        cluster = [rp1, rp2]
+        cluster_indices = [0, 1]
+
+        exemplar = _select_exemplar_by_centrality(cluster, cluster_indices, graph)
+        assert exemplar == "readA"  # Should choose higher quality read
+
+
 class TestReadPairClass:
     """Test ReadPair class functionality."""
 
@@ -269,3 +492,134 @@ class TestParameterValidation:
         params = MinimizerParams(window_len=47, kmer_len=47)
         assert params.window_len == 47
         assert params.kmer_len == 47
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_dedup_params_valid_orientation(self):
+        params1 = DedupParams(orientation=ORIENT_STRICT)
+        params2 = DedupParams(orientation=ORIENT_TOLERANT)
+
+        assert params1.orientation == ORIENT_STRICT
+        assert params2.orientation == ORIENT_TOLERANT
+
+
+class TestDeduplicateFunction:
+    """End-to-end tests for the deduplicate_read_pairs function."""
+
+    @pytest.mark.fast
+    @pytest.mark.integration
+    def test_empty_input_empty_output(self):
+        result = deduplicate_read_pairs([])
+        assert result == []
+
+    @pytest.mark.fast
+    @pytest.mark.integration
+    def test_all_identical_sequences_single_cluster(self):
+        rng = random.Random(42)
+        seq_f = _random_seq(100, rng)
+        seq_r = _random_seq(100, rng)
+        qual = "I" * 100
+
+        read_pairs = [
+            ReadPair("read1", seq_f, seq_r, qual, qual),
+            ReadPair("read2", seq_f, seq_r, qual, qual),
+            ReadPair("read3", seq_f, seq_r, qual, qual),
+        ]
+
+        result = deduplicate_read_pairs(read_pairs)
+
+        exemplars = {rp.exemplar_id for rp in result}
+        assert len(exemplars) == 1
+        assert [rp.read_id for rp in result] == ["read1", "read2", "read3"]
+
+    @pytest.mark.fast
+    @pytest.mark.integration
+    def test_no_duplicates_all_singletons(self):
+        rng = random.Random(42)
+        qual = "I" * 100
+
+        read_pairs = [
+            ReadPair("read1", _random_seq(100, rng), _random_seq(100, rng), qual, qual),
+            ReadPair("read2", _random_seq(100, rng), _random_seq(100, rng), qual, qual),
+            ReadPair("read3", _random_seq(100, rng), _random_seq(100, rng), qual, qual),
+        ]
+
+        result = deduplicate_read_pairs(read_pairs)
+
+        for rp in result:
+            assert rp.exemplar_id == rp.read_id
+        assert [rp.read_id for rp in result] == ["read1", "read2", "read3"]
+
+    @pytest.mark.fast
+    @pytest.mark.integration
+    def test_multiple_small_clusters(self):
+        rng = random.Random(42)
+
+        seq1_f = _random_seq(100, rng)
+        seq1_r = _random_seq(100, rng)
+        seq2_f = _random_seq(100, rng)
+        seq2_r = _random_seq(100, rng)
+        seq3_f = _random_seq(100, rng)
+        seq3_r = _random_seq(100, rng)
+
+        read_pairs = [
+            ReadPair("read1", seq1_f, seq1_r, "I" * 100, "J" * 100),  # Lower quality
+            ReadPair("read2", seq1_f, seq1_r, "K" * 100, "K" * 100),  # Higher quality
+            ReadPair("read3", seq2_f, seq2_r, "I" * 100, "I" * 100),  # Singleton
+            ReadPair("read4", seq3_f, seq3_r, "I" * 100, "I" * 100),  # Cluster 2
+            ReadPair("read5", seq3_f, seq3_r, "I" * 100, "I" * 100),  # Cluster 2
+        ]
+
+        result = deduplicate_read_pairs(read_pairs)
+
+        exemplars = {rp.exemplar_id for rp in result}
+        assert len(exemplars) == 3
+
+        assert [rp.read_id for rp in result] == [
+            "read1",
+            "read2",
+            "read3",
+            "read4",
+            "read5",
+        ]
+
+        assert result[0].exemplar_id == "read2"  # Higher quality wins
+        assert result[1].exemplar_id == "read2"
+        assert result[2].exemplar_id == "read3"  # Singleton
+        assert result[3].exemplar_id in ["read4", "read5"]
+        assert result[4].exemplar_id == result[3].exemplar_id
+
+    @pytest.mark.fast
+    @pytest.mark.integration
+    def test_realistic_reads_with_errors(self):
+        rng = random.Random(42)
+
+        base_seq_f = _random_seq(150, rng)
+        base_seq_r = _random_seq(150, rng)
+        qual = "I" * 150
+
+        # Create reads with small differences
+        seq_with_1_error = base_seq_f[:50] + "G" + base_seq_f[51:]
+
+        read_pairs = [
+            ReadPair("read1", base_seq_f, base_seq_r, qual, qual),
+            ReadPair("read2", seq_with_1_error, base_seq_r, qual, qual),
+            ReadPair(
+                "read3", base_seq_f, base_seq_r[:50] + "A" + base_seq_r[51:], qual, qual
+            ),
+            ReadPair(
+                "read4", _random_seq(150, rng), _random_seq(150, rng), qual, qual
+            ),  # Different
+        ]
+
+        dedup_params = DedupParams(max_offset=1, max_error_frac=0.01)
+        result = deduplicate_read_pairs(read_pairs, dedup_params)
+
+        exemplar1 = result[0].exemplar_id
+        assert result[1].exemplar_id == exemplar1
+        assert result[2].exemplar_id == exemplar1
+
+        assert result[3].exemplar_id == "read4"
+
+        exemplars = {rp.exemplar_id for rp in result}
+        assert len(exemplars) == 2

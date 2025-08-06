@@ -26,6 +26,17 @@ ORIENT_TOLERANT = "tolerant"
 
 
 @dataclass
+class DedupParams:
+    """User-configurable deduplication parameters."""
+
+    max_offset: int = 1  # Maximum alignment shift in bases
+    max_error_frac: float = 0.01  # Maximum mismatch fraction (errors/overlap)
+    orientation: Literal["strict", "tolerant"] = (
+        ORIENT_TOLERANT  # Whether to check swapped mates
+    )
+
+
+@dataclass
 class MinimizerParams:
     """Minimizer configuration (rarely needs changing)."""
 
@@ -164,3 +175,182 @@ def _assign_to_buckets(
         for key in keys:
             buckets[key].append(idx)
     return buckets
+
+
+##
+# Read pair comparisons: are a pair of read pairs dups of each other?
+##
+
+
+def _mismatch_count(s1: str, s2: str) -> int:
+    """Count mismatches between two strings (compares up to shorter length)."""
+    return sum(c1 != c2 for c1, c2 in zip(s1, s2))
+
+
+def _sequences_match(seq1: str, seq2: str, params: DedupParams) -> bool:
+    """
+    Check if two sequences match within allowed offset and error tolerance.
+
+    Tests alignments with seq1 shifted relative to seq2 by up to max_offset bases.
+    """
+    for offset in range(-params.max_offset, params.max_offset + 1):
+        # Determine overlap region
+        if offset >= 0:
+            # seq1 shifted left: seq1[offset:] aligns with seq2[0:]
+            overlap = _mismatch_count(seq1[offset:], seq2)
+            overlap_len = min(len(seq1) - offset, len(seq2))
+        else:
+            # seq1 shifted right: seq1[0:] aligns with seq2[-offset:]
+            overlap = _mismatch_count(seq1, seq2[-offset:])
+            overlap_len = min(len(seq1), len(seq2) + offset)
+
+        if overlap_len <= 0:
+            continue
+
+        # Check if within error tolerance
+        if overlap <= params.max_error_frac * overlap_len:
+            return True
+
+    return False
+
+
+def _read_pairs_equivalent(rp1: ReadPair, rp2: ReadPair, params: DedupParams) -> bool:
+    """
+    Test if two read pairs are equivalent (duplicates).
+
+    In strict mode: F1-R1 must match F2-R2
+    In tolerant mode: Also checks F1-R1 against R2-F2 (swapped orientation)
+    """
+    # Always check standard orientation
+    if _sequences_match(rp1.fwd_seq, rp2.fwd_seq, params) and _sequences_match(
+        rp1.rev_seq, rp2.rev_seq, params
+    ):
+        return True
+
+    # In tolerant mode, also check swapped orientation
+    if params.orientation == ORIENT_TOLERANT:
+        if _sequences_match(rp1.fwd_seq, rp2.rev_seq, params) and _sequences_match(
+            rp1.rev_seq, rp2.fwd_seq, params
+        ):
+            return True
+
+    return False
+
+
+##
+# Graph based duplicate detection
+##
+
+
+def _select_exemplar_by_centrality(
+    cluster: List[ReadPair], cluster_indices: List[int], graph: nx.Graph
+) -> str:
+    """
+    Select exemplar as the most central node in the cluster subgraph.
+
+    Uses eccentricity (max distance to any other node) as the centrality measure.
+    Ties are broken by mean quality, then total length, then read ID.
+
+    Args:
+        cluster: List of ReadPair objects in the cluster
+        cluster_indices: Corresponding node indices in the graph
+        graph: The full deduplication graph
+
+    Returns:
+        Read ID of the selected exemplar
+    """
+    if len(cluster) == 1:
+        return cluster[0].read_id
+
+    # Extract subgraph for this cluster
+    subgraph = graph.subgraph(cluster_indices)
+
+    # Calculate eccentricity for each node (lower is more central)
+    # For disconnected subgraphs, this still works per component
+    eccentricities = nx.eccentricity(subgraph)
+
+    # Build selection criteria for each read
+    candidates = []
+    for idx, rp in zip(cluster_indices, cluster):
+        eccentricity = eccentricities.get(idx, float("inf"))
+        mean_qual = rp.mean_qual()
+        total_len = len(rp.fwd_seq) + len(rp.rev_seq)
+
+        # Lower values are better
+        score = (eccentricity, -mean_qual, -total_len, rp.read_id)
+        candidates.append((score, rp.read_id))
+
+    # Select best candidate
+    candidates.sort()
+    return candidates[0][1]
+
+
+def _build_graph(
+    read_pairs: List[ReadPair],
+    buckets: Dict[Tuple[int, int], List[int]],
+    dedup_params: DedupParams,
+) -> Tuple[nx.Graph, int]:
+    """Build a graph over read pairs that have already been sorted into buckets. In the
+    graph, vertices are read pairs and edges represent equivalence. Returns a tuple
+    (graph, n_comparisons)."""
+    graph = nx.Graph()
+    graph.add_nodes_from(range(len(read_pairs)))
+
+    # Compare reads within each bucket
+    comparisons = set()  # don't repeat comparisons across buckets
+    for bucket_indices in buckets.values():
+        # Check all pairs in this bucket
+        for i, j in combinations(sorted(bucket_indices), 2):
+            if (i, j) in comparisons:
+                continue
+            if _read_pairs_equivalent(read_pairs[i], read_pairs[j], dedup_params):
+                graph.add_edge(i, j)
+            comparisons.add((i, j))
+
+    return graph, len(comparisons)
+
+
+def deduplicate_read_pairs(
+    read_pairs: List[ReadPair],
+    dedup_params: DedupParams = DedupParams(),
+    minimizer_params: MinimizerParams = MinimizerParams(),
+) -> List[ReadPair]:
+    """
+    Deduplicate a list of read pairs from a single library.
+
+    Args:
+        read_pairs: List of ReadPair objects to deduplicate
+        dedup_params: Parameters controlling deduplication behavior
+        minimizer_params: Parameters for minimizer extraction
+
+    Returns:
+        Same list with exemplar_id field populated for each read
+    """
+    if len(read_pairs) == 0:
+        return read_pairs
+
+    # Step 1: Build buckets based on minimizers
+    buckets = _assign_to_buckets(read_pairs, minimizer_params, dedup_params.orientation)
+
+    # Step 2: Build equivalence graph
+    graph, comparisons = _build_graph(read_pairs, buckets, dedup_params)
+
+    # Step 3: Find connected components and assign exemplars
+    for component in nx.connected_components(graph):
+        component_list = list(component)
+        cluster = [read_pairs[idx] for idx in component_list]
+        exemplar_id = _select_exemplar_by_centrality(cluster, component_list, graph)
+
+        # Mark all reads in cluster with their exemplar
+        for rp in cluster:
+            rp.exemplar_id = exemplar_id
+
+    # Log some stats
+    n_components = nx.number_connected_components(graph)
+    n_edges = graph.number_of_edges()
+    print(
+        f"Deduplication: {len(read_pairs)} reads, {len(buckets)} buckets, "
+        f"{comparisons} comparisons, {n_edges} edges, {n_components} components"
+    )
+
+    return read_pairs
