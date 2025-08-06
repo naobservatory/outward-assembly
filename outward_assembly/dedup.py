@@ -6,13 +6,15 @@ bucket for efficiency. Deduplication is tolerant to small alignment
 shifts and sequencing errors.
 """
 
+import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
+from itertools import combinations
 from typing import Dict, List, Literal, Optional, Set, Tuple
 
 import networkx as nx
 
-# We represent sequences as strings rather than Bio.Seq:
+# No Bio import; we represent sequences as strings rather than Bio.Seq:
 # - Don't need any Bio machinery
 # - Python string operations are faster than the corresponding Seq operations
 
@@ -24,7 +26,7 @@ ORIENT_TOLERANT = "tolerant"
 class DedupParams:
     """User-configurable deduplication parameters."""
 
-    max_offset: int = 2  # Maximum alignment shift in bases
+    max_offset: int = 1  # Maximum alignment shift in bases
     max_error_frac: float = 0.01  # Maximum mismatch fraction (errors/overlap)
     orientation: Literal["strict", "tolerant"] = (
         ORIENT_TOLERANT  # Whether to check swapped mates
@@ -111,7 +113,8 @@ def _extract_minimizer(seq: str, window_idx: int, params: MinimizerParams) -> in
         return hash("EMPTY")
 
     # Find minimizer (smallest hash) in this window
-    min_hash = float("inf")
+    bigger_than_hash = sys.maxsize + 1
+    min_hash = bigger_than_hash
     for i in range(start, end - params.kmer_len + 1):
         kmer = seq[i : i + params.kmer_len]
         if "N" not in kmer:  # Skip k-mers with ambiguous bases
@@ -120,7 +123,7 @@ def _extract_minimizer(seq: str, window_idx: int, params: MinimizerParams) -> in
             if h < min_hash:
                 min_hash = h
 
-    return min_hash if min_hash != float("inf") else hash("EMPTY")
+    return min_hash if min_hash != bigger_than_hash else hash("EMPTY")
 
 
 def _get_bucket_keys(
@@ -285,23 +288,17 @@ def _build_graph(
     graph.add_nodes_from(range(len(read_pairs)))
 
     # Compare reads within each bucket
-    comparisons = 0
+    comparisons = set()  # don't repeat comparisons across buckets
     for bucket_indices in buckets.values():
-        if len(bucket_indices) < 2:
-            continue
-
         # Check all pairs in this bucket
-        for i in range(len(bucket_indices)):
-            for j in range(i + 1, len(bucket_indices)):
-                idx1, idx2 = bucket_indices[i], bucket_indices[j]
-                comparisons += 1
+        for i, j in combinations(sorted(bucket_indices), 2):
+            if (i, j) in comparisons:
+                continue
+            if _read_pairs_equivalent(read_pairs[i], read_pairs[j], dedup_params):
+                graph.add_edge(i, j)
+            comparisons.add((i, j))
 
-                if _read_pairs_equivalent(
-                    read_pairs[idx1], read_pairs[idx2], dedup_params
-                ):
-                    graph.add_edge(idx1, idx2)
-
-    return graph, comparisons
+    return graph, len(comparisons)
 
 
 def deduplicate_read_pairs(
