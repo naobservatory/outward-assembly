@@ -10,6 +10,7 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import combinations
+from zlib import crc32
 from typing import Dict, List, Literal, Optional, Set, Tuple
 
 import networkx as nx
@@ -92,6 +93,10 @@ def _canonical_kmer(kmer: str) -> str:
     rc = _reverse_complement(kmer)
     return min(kmer, rc)
 
+def _hash_kmer(kmer: str) -> int:
+    """Hash a kmer to an int. The actual hash used is an implementation detail,
+    but the result must be stable run-to-run (so no default Python hash)."""
+    return crc32(kmer.encode())
 
 def _extract_minimizer(seq: str, window_idx: int, params: MinimizerParams) -> int:
     """
@@ -110,7 +115,7 @@ def _extract_minimizer(seq: str, window_idx: int, params: MinimizerParams) -> in
 
     if end - start < params.kmer_len:
         # Window too short to contain a k-mer - return consistent hash
-        return hash("EMPTY")
+        return _hash_kmer("EMPTY")
 
     # Find minimizer (smallest hash) in this window
     bigger_than_hash = sys.maxsize + 1
@@ -119,11 +124,11 @@ def _extract_minimizer(seq: str, window_idx: int, params: MinimizerParams) -> in
         kmer = seq[i : i + params.kmer_len]
         if "N" not in kmer:  # Skip k-mers with ambiguous bases
             canonical = _canonical_kmer(kmer)
-            h = hash(canonical)
+            h = _hash_kmer(canonical)
             if h < min_hash:
                 min_hash = h
 
-    return min_hash if min_hash != bigger_than_hash else hash("EMPTY")
+    return min_hash if min_hash != bigger_than_hash else _hash_kmer("EMPTY")
 
 
 def _get_bucket_keys(

@@ -16,6 +16,7 @@ from outward_assembly.dedup import (
     _canonical_kmer,
     _extract_minimizer,
     _get_bucket_keys,
+    _hash_kmer,
     _mismatch_count,
     _read_pairs_equivalent,
     _reverse_complement,
@@ -108,8 +109,8 @@ class TestMinimizerExtraction:
         hash_without_n = _extract_minimizer(seq_without_n, 0, params)
 
         # Should skip N-containing kmers and find valid ones
-        assert hash_with_n != hash("EMPTY")
-        assert hash_without_n != hash("EMPTY")
+        assert hash_with_n != _hash_kmer("EMPTY")
+        assert hash_without_n != _hash_kmer("EMPTY")
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -118,45 +119,36 @@ class TestMinimizerExtraction:
         seq = "AAAAA"  # 5bp sequence, need 7bp kmer
 
         hash_result = _extract_minimizer(seq, 0, params)
-        assert hash_result == hash("EMPTY")
+        assert hash_result == _hash_kmer("EMPTY")
 
     @pytest.mark.fast
     @pytest.mark.unit
-    def test_extract_minimizer_all_n_window(self):
+    def test_extract_minimizer_all_N_window(self):
         params = MinimizerParams(num_windows=1, window_len=10, kmer_len=3)
         seq = "NNNNNNNNNN"
 
         hash_result = _extract_minimizer(seq, 0, params)
-        assert hash_result == hash("EMPTY")
+        assert hash_result == _hash_kmer("EMPTY")
 
     @pytest.mark.fast
     @pytest.mark.unit
-    def test_get_bucket_keys_strict_mode(self):
-        params = MinimizerParams(num_windows=2, window_len=10, kmer_len=3)
+    def test_get_bucket_keys(self):
+        params = MinimizerParams(num_windows=2, window_len=20, kmer_len=7)
+        rng = random.Random("hello")
         rp = ReadPair(
-            "test", "ACGTGCATTAGCGTACGTAT", "TGCAACGTGCTAACGTGCTA", "I" * 20, "I" * 20
+            "test", _random_seq(40, rng), _random_seq(40, rng), "I" * 40, "I" * 40
         )
 
-        keys = _get_bucket_keys(rp, params, ORIENT_STRICT)
-
-        # Should generate num_windows² keys:
+        # Strict mode should generate num_windows² keys:
         # num_windows minimizers in the fwd seq x num_windows in the rev seq
+        keys = _get_bucket_keys(rp, params, ORIENT_STRICT)
         assert len(keys) == 4
         assert all(isinstance(key, tuple) and len(key) == 2 for key in keys)
 
-    @pytest.mark.fast
-    @pytest.mark.unit
-    def test_get_bucket_keys_tolerant_mode(self):
-        params = MinimizerParams(num_windows=2, window_len=10, kmer_len=3)
-        rp = ReadPair(
-            "test", "ACGTGCATTAGCGTACGTAT", "TGCAACGTGCTAACGTGCTA", "I" * 20, "I" * 20
-        )
-
-        keys = _get_bucket_keys(rp, params, ORIENT_TOLERANT)
-
-        # Should generate 2*num_windows² keys:
+        # Tolerant mode should generate 2*num_windows² keys:
         # num_windows minimizers in the fwd seq x num_windows in the rev seq,
         # times 2 for swapping fwd/rev
+        keys = _get_bucket_keys(rp, params, ORIENT_TOLERANT)
         assert len(keys) == 8
         assert all(isinstance(key, tuple) and len(key) == 2 for key in keys)
 
