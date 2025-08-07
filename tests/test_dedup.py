@@ -180,8 +180,8 @@ class TestSequenceMatching:
     def test_sequences_match_exact(self):
         params = DedupParams(max_offset=1, max_error_frac=0.01)
 
-        assert _sequences_match("AAAA", "AAAA", params) is True
-        assert _sequences_match("ACGT", "ACGT", params) is True
+        assert _sequences_match("AAAA", "AAAA", params)
+        assert _sequences_match("ACGT", "ACGT", params)
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -189,9 +189,9 @@ class TestSequenceMatching:
         params = DedupParams(max_offset=1, max_error_frac=0.01)
 
         # Left shift: XAAAA vs AAAA (X removed)
-        assert _sequences_match("GAAAA", "AAAA", params) is True
+        assert _sequences_match("GAAAA", "AAAA", params)
         # Right shift: AAAA vs XAAAA (X added at start)
-        assert _sequences_match("AAAA", "GAAAA", params) is True
+        assert _sequences_match("AAAA", "GAAAA", params)
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -199,8 +199,8 @@ class TestSequenceMatching:
         params = DedupParams(max_offset=1, max_error_frac=0.01)
 
         # Should not match with offset > 1
-        assert _sequences_match("GGAAAA", "AAAA", params) is False
-        assert _sequences_match("AAAA", "GGAAAA", params) is False
+        assert not _sequences_match("GGAAAA", "AAAA", params)
+        assert not _sequences_match("AAAA", "GGAAAA", params)
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -208,9 +208,9 @@ class TestSequenceMatching:
         params = DedupParams(max_offset=0, max_error_frac=0.1)  # 10% error allowed
 
         # 1 error in 10bp = 10% error rate
-        assert _sequences_match("AAAAAAAAAA", "AAAAAAAAAG", params) is True
+        assert _sequences_match("AAAAAAAAAA", "AAAAAAAAAG", params)
         # 2 errors in 10bp = 20% error rate (should fail)
-        assert _sequences_match("AAAAAAAAAA", "AAAAAAAGGG", params) is False
+        assert not _sequences_match("AAAAAAAAAA", "AAAAAAAGGG", params)
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -218,7 +218,7 @@ class TestSequenceMatching:
         params = DedupParams(max_offset=0, max_error_frac=0.01)  # 1% error allowed
 
         # 1 error in 10bp = 10% error rate (should fail)
-        assert _sequences_match("AAAAAAAAAA", "AAAAAAAAAG", params) is False
+        assert not _sequences_match("AAAAAAAAAA", "AAAAAAAAAG", params)
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -231,8 +231,8 @@ class TestSequenceMatching:
         rp2 = ReadPair("read2", "AAAA", "TTTT", "IIII", "IIII")
         rp3 = ReadPair("read3", "AAAA", "CCCC", "IIII", "IIII")
 
-        assert _read_pairs_equivalent(rp1, rp2, params) is True
-        assert _read_pairs_equivalent(rp1, rp3, params) is False
+        assert _read_pairs_equivalent(rp1, rp2, params)
+        assert not _read_pairs_equivalent(rp1, rp3, params)
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -245,7 +245,7 @@ class TestSequenceMatching:
         rp1 = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
         rp2 = ReadPair("read2", "TTTT", "AAAA", "IIII", "IIII")  # Swapped F/R
 
-        assert _read_pairs_equivalent(rp1, rp2, params) is True
+        assert _read_pairs_equivalent(rp1, rp2, params)
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -258,7 +258,7 @@ class TestSequenceMatching:
         rp1 = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
         rp2 = ReadPair("read2", "TTTT", "AAAA", "IIII", "IIII")  # Swapped F/R
 
-        assert _read_pairs_equivalent(rp1, rp2, params) is False
+        assert not _read_pairs_equivalent(rp1, rp2, params)
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -270,7 +270,7 @@ class TestSequenceMatching:
         rp1 = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
         rp2 = ReadPair("read2", "GGGG", "CCCC", "IIII", "IIII")
 
-        assert _read_pairs_equivalent(rp1, rp2, params) is False
+        assert not _read_pairs_equivalent(rp1, rp2, params)
 
 
 class TestBucketing:
