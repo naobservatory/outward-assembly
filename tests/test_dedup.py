@@ -6,23 +6,16 @@ import networkx as nx
 import pytest
 
 from outward_assembly.dedup import (
+    EMPTY_KMER_SENTINEL_HASH,
     ORIENT_STRICT,
     ORIENT_TOLERANT,
-    DedupParams,
     MinimizerParams,
     ReadPair,
     _assign_to_buckets,
-    _build_graph,
     _canonical_kmer,
     _extract_minimizer,
     _get_bucket_keys,
-    _hash_kmer,
-    _mismatch_count,
-    _read_pairs_equivalent,
     _reverse_complement,
-    _select_exemplar_by_centrality,
-    _sequences_match,
-    deduplicate_read_pairs,
 )
 
 
@@ -92,8 +85,8 @@ class TestMinimizerExtraction:
         hash_without_n = _extract_minimizer(seq_without_n, 0, params)
 
         # Should skip N-containing kmers and find valid ones
-        assert hash_with_n != _hash_kmer("EMPTY")
-        assert hash_without_n != _hash_kmer("EMPTY")
+        assert hash_with_n != EMPTY_KMER_SENTINEL_HASH
+        assert hash_without_n != EMPTY_KMER_SENTINEL_HASH
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -102,7 +95,26 @@ class TestMinimizerExtraction:
         seq = "AAAAA"  # 5bp sequence, need 7bp kmer
 
         hash_result = _extract_minimizer(seq, 0, params)
-        assert hash_result == _hash_kmer("EMPTY")
+        assert hash_result == EMPTY_KMER_SENTINEL_HASH
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_extract_minimizer_sequence_too_short(self):
+        "Collected windows longer than sequence, should succeed with a sentinel hash."
+        params = MinimizerParams(num_windows=2, window_len=10, kmer_len=7)
+        seq = "AAAAACCGGTT"  # 11bp sequence, second window is too short
+
+        hash_result = _extract_minimizer(seq, 1, params)
+        assert hash_result == EMPTY_KMER_SENTINEL_HASH
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_extract_minimizer_sequence_matches_window_matches_kmer(self):
+        params = MinimizerParams(num_windows=1, window_len=11, kmer_len=11)
+        seq = "AAAAACCGGTT"  # 11bp sequence
+
+        hash_result = _extract_minimizer(seq, 0, params)
+        assert hash_result != EMPTY_KMER_SENTINEL_HASH
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -111,7 +123,7 @@ class TestMinimizerExtraction:
         seq = "NNNNNNNNNN"
 
         hash_result = _extract_minimizer(seq, 0, params)
-        assert hash_result == _hash_kmer("EMPTY")
+        assert hash_result == EMPTY_KMER_SENTINEL_HASH
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -151,27 +163,66 @@ class TestBucketing:
         buckets = _assign_to_buckets([rp1, rp2], params, ORIENT_STRICT)
 
         # Should have at least one bucket containing both reads
-        found_shared_bucket = False
-        for bucket_indices in buckets.values():
-            if len(bucket_indices) >= 2:
-                found_shared_bucket = True
-                break
-
-        assert found_shared_bucket is True
+        assert any(len(bucket_indices) >= 2 for bucket_indices in buckets.values())
 
     @pytest.mark.fast
     @pytest.mark.unit
     def test_assign_to_buckets_multiple_buckets(self):
-        # Same read should appear in multiple buckets
+        # Reads should appear in multiple buckets (since num_windows > 1)
         params = MinimizerParams(num_windows=2, window_len=10, kmer_len=3)
-
-        rp = ReadPair("read1", "A" * 20, "T" * 20, "I" * 20, "I" * 20)
+        rng = random.Random("hello")
+        rp = ReadPair(
+            "read1",
+            _random_seq(20, rng),
+            _random_seq(20, rng),
+            "I" * 20,
+            "I" * 20,
+        )
 
         buckets = _assign_to_buckets([rp], params, ORIENT_STRICT)
 
         # Read should appear in multiple buckets (W² = 4 buckets)
-        total_appearances = sum(1 for indices in buckets.values() if 0 in indices)
-        assert total_appearances >= 1
+        total_appearances = sum(0 in indices for indices in buckets.values())
+        assert total_appearances >= 4
+
+    @pytest.mark.fast
+    @pytest.mark.unit
+    def test_dups_share_buckets(self):
+        """Test with realistic-ish data that two read pairs which are duplicates
+        with a single base error in each of fwd/rev read share a bucket. This test
+        is probabilistic, though with fixed random seed should be consistent."""
+        rng = random.Random(1234)
+        read_len = 150
+
+        def _seq_with_error(seq):
+            error_loc = rng.choice(range(read_len))
+            if rng.random() < 0.5:  # sometimes offset
+                start = 1
+            else:
+                start = 0
+            return (
+                seq[start:error_loc]
+                + rng.choice(["A", "C", "G", "T"])
+                + seq[error_loc + 1 :]
+            )
+
+        for rep in range(100):
+            # create a pair of reads that are dups but not perfect dups
+            rp1 = ReadPair(
+                "pair1",
+                _random_seq(read_len, rng),
+                _random_seq(read_len, rng),
+                "I" * read_len,
+                "I" * read_len,
+            )
+            rp2_fwd = _seq_with_error(rp1.fwd_seq)
+            rp2_rev = _seq_with_error(rp1.rev_seq)
+            rp2 = ReadPair(
+                "pair2", rp2_fwd, rp2_rev, "I" * len(rp2_fwd), "I" * len(rp2_rev)
+            )
+            buckets = _assign_to_buckets([rp1, rp2], MinimizerParams(), ORIENT_STRICT)
+            # Should have at least one bucket containing both reads
+            assert any(len(bucket_indices) == 2 for bucket_indices in buckets.values())
 
 
 class TestReadPairClass:
@@ -214,5 +265,7 @@ class TestParameterValidation:
         params = MinimizerParams(window_len=10, kmer_len=5)
         assert params.window_len == 10
         assert params.kmer_len == 5
-
-
+        # it's legal if surprising to have window and kmer length match
+        params = MinimizerParams(window_len=47, kmer_len=47)
+        assert params.window_len == 47
+        assert params.kmer_len == 47

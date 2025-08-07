@@ -19,6 +19,8 @@ import networkx as nx
 # - Don't need any Bio machinery
 # - Python string operations are faster than the corresponding Seq operations
 
+EMPTY_KMER_SENTINEL_HASH = -1  # crc32 returns nonnegative integers, no collision
+
 ORIENT_STRICT = "strict"
 ORIENT_TOLERANT = "tolerant"
 
@@ -27,8 +29,8 @@ ORIENT_TOLERANT = "tolerant"
 class MinimizerParams:
     """Minimizer configuration (rarely needs changing)."""
 
-    num_windows: int = 2  # Number of windows per read
-    window_len: int = 20  # Base pairs per window
+    num_windows: int = 3  # Number of windows per read
+    window_len: int = 25  # Base pairs per window
     kmer_len: int = 7  # K-mer size for minimizers
 
     def __post_init__(self):
@@ -82,10 +84,12 @@ def _canonical_kmer(kmer: str) -> str:
     rc = _reverse_complement(kmer)
     return min(kmer, rc)
 
+
 def _hash_kmer(kmer: str) -> int:
     """Hash a kmer to an int. The actual hash used is an implementation detail,
     but the result must be stable run-to-run (so no default Python hash)."""
     return crc32(kmer.encode())
+
 
 def _extract_minimizer(seq: str, window_idx: int, params: MinimizerParams) -> int:
     """
@@ -104,7 +108,7 @@ def _extract_minimizer(seq: str, window_idx: int, params: MinimizerParams) -> in
 
     if end - start < params.kmer_len:
         # Window too short to contain a k-mer - return consistent hash
-        return _hash_kmer("EMPTY")
+        return EMPTY_KMER_SENTINEL_HASH
 
     # Find minimizer (smallest hash) in this window
     bigger_than_hash = sys.maxsize + 1
@@ -117,7 +121,7 @@ def _extract_minimizer(seq: str, window_idx: int, params: MinimizerParams) -> in
             if h < min_hash:
                 min_hash = h
 
-    return min_hash if min_hash != bigger_than_hash else _hash_kmer("EMPTY")
+    return min_hash if min_hash != bigger_than_hash else EMPTY_KMER_SENTINEL_HASH
 
 
 def _get_bucket_keys(
@@ -160,4 +164,3 @@ def _assign_to_buckets(
         for key in keys:
             buckets[key].append(idx)
     return buckets
-
