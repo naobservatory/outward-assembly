@@ -192,7 +192,8 @@ def _sequences_match(seq1: str, seq2: str, params: DedupParams) -> bool:
     """
     Check if two sequences match within allowed offset and error tolerance.
 
-    Tests alignments with seq1 shifted relative to seq2 by up to max_offset bases.
+    Tests alignments with seq1 shifted relative to seq2 by up to max_offset bases, counting
+    each base of offset as a single base mismatch.
     """
     for offset in range(-params.max_offset, params.max_offset + 1):
         # Determine overlap region
@@ -207,7 +208,7 @@ def _sequences_match(seq1: str, seq2: str, params: DedupParams) -> bool:
         if overlap_len <= 0:
             continue
 
-        if mismatches <= params.max_error_frac * overlap_len:
+        if abs(offset) + mismatches <= params.max_error_frac * overlap_len:
             return True
 
     return False

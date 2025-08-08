@@ -186,7 +186,9 @@ class TestSequenceMatching:
     @pytest.mark.fast
     @pytest.mark.unit
     def test_sequences_match_with_offset_1(self):
-        params = DedupParams(max_offset=1, max_error_frac=0.01)
+        params = DedupParams(max_offset=1, max_error_frac=0.25)
+        # need a large max_error_frac; for short test test seqs, an offset of
+        # 1 is a large relative error
 
         # Left shift: XAAAA vs AAAA (X removed)
         assert _sequences_match("GAAAA", "AAAA", params)
