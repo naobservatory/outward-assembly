@@ -197,18 +197,16 @@ def _sequences_match(seq1: str, seq2: str, params: DedupParams) -> bool:
         # Determine overlap region
         if offset >= 0:
             # seq1 shifted left: seq1[offset:] aligns with seq2[0:]
-            overlap = _mismatch_count(seq1[offset:], seq2)
+            mismatches = _mismatch_count(seq1[offset:], seq2)
             overlap_len = min(len(seq1) - offset, len(seq2))
         else:
             # seq1 shifted right: seq1[0:] aligns with seq2[-offset:]
-            overlap = _mismatch_count(seq1, seq2[-offset:])
+            mismatches = _mismatch_count(seq1, seq2[-offset:])
             overlap_len = min(len(seq1), len(seq2) + offset)
-
         if overlap_len <= 0:
             continue
 
-        # Check if within error tolerance
-        if overlap <= params.max_error_frac * overlap_len:
+        if mismatches <= params.max_error_frac * overlap_len:
             return True
 
     return False
@@ -262,7 +260,6 @@ def _select_exemplar_by_centrality(
     if len(cluster) == 1:
         return cluster[0].read_id
 
-    # Extract subgraph for this cluster
     subgraph = graph.subgraph(cluster_indices)
 
     # Calculate eccentricity for each node (lower is more central)
@@ -314,6 +311,7 @@ def deduplicate_read_pairs(
     read_pairs: List[ReadPair],
     dedup_params: DedupParams = DedupParams(),
     minimizer_params: MinimizerParams = MinimizerParams(),
+    verbose: bool = True,
 ) -> List[ReadPair]:
     """
     Deduplicate a list of read pairs from a single library.
@@ -322,6 +320,7 @@ def deduplicate_read_pairs(
         read_pairs: List of ReadPair objects to deduplicate
         dedup_params: Parameters controlling deduplication behavior
         minimizer_params: Parameters for minimizer extraction
+        verbose: Print some debug info
 
     Returns:
         Same list with exemplar_id field populated for each read
@@ -329,13 +328,11 @@ def deduplicate_read_pairs(
     if len(read_pairs) == 0:
         return read_pairs
 
-    # Step 1: Build buckets based on minimizers
+    # Step 1: Build equivalence graph
     buckets = _assign_to_buckets(read_pairs, minimizer_params, dedup_params.orientation)
-
-    # Step 2: Build equivalence graph
     graph, comparisons = _build_graph(read_pairs, buckets, dedup_params)
 
-    # Step 3: Find connected components and assign exemplars
+    # Step 2: Find connected components and assign exemplars
     for component in nx.connected_components(graph):
         component_list = list(component)
         cluster = [read_pairs[idx] for idx in component_list]
@@ -345,12 +342,12 @@ def deduplicate_read_pairs(
         for rp in cluster:
             rp.exemplar_id = exemplar_id
 
-    # Log some stats
-    n_components = nx.number_connected_components(graph)
-    n_edges = graph.number_of_edges()
-    print(
-        f"Deduplication: {len(read_pairs)} reads, {len(buckets)} buckets, "
-        f"{comparisons} comparisons, {n_edges} edges, {n_components} components"
-    )
+    if verbose:
+        n_components = nx.number_connected_components(graph)
+        n_edges = graph.number_of_edges()
+        print(
+            f"Deduplication: {len(read_pairs)} reads, {len(buckets)} buckets, "
+            f"{comparisons} comparisons, {n_edges} edges, {n_components} components"
+        )
 
     return read_pairs

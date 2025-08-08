@@ -599,14 +599,15 @@ class TestDeduplicateFunction:
         qual = "I" * 150
 
         # Create reads with small differences
-        seq_with_1_error = base_seq_f[:50] + "G" + base_seq_f[51:]
+        sub_f = "G" if base_seq_f[50] != "G" else "A"
+        base_seq_f_with_error = base_seq_f[:50] + sub_f + base_seq_f[51:]
+        sub_r = "G" if base_seq_r[50] != "G" else "A"
+        base_seq_r_with_error = base_seq_r[:50] + sub_r + base_seq_r[51:]
 
         read_pairs = [
             ReadPair("read1", base_seq_f, base_seq_r, qual, qual),
-            ReadPair("read2", seq_with_1_error, base_seq_r, qual, qual),
-            ReadPair(
-                "read3", base_seq_f, base_seq_r[:50] + "A" + base_seq_r[51:], qual, qual
-            ),
+            ReadPair("read2", base_seq_f_with_error, base_seq_r, qual, qual),
+            ReadPair("read3", base_seq_f, base_seq_r_with_error, qual, qual),
             ReadPair(
                 "read4", _random_seq(150, rng), _random_seq(150, rng), qual, qual
             ),  # Different
