@@ -11,7 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import combinations
 from zlib import crc32
-from typing import Dict, List, Literal, Optional, Set, Tuple
+from typing import Literal, Optional
 
 import networkx as nx
 
@@ -20,6 +20,7 @@ import networkx as nx
 # - Python string operations are faster than the corresponding Seq operations
 
 EMPTY_KMER_SENTINEL_HASH = -1  # crc32 returns nonnegative integers, no collision
+HashPair = tuple[int, int]  # hash from fwd mate, hash from rev mate
 
 ORIENT_STRICT = "strict"
 ORIENT_TOLERANT = "tolerant"
@@ -137,7 +138,7 @@ def _extract_minimizer(seq: str, window_idx: int, params: MinimizerParams) -> in
 
 def _get_bucket_keys(
     read_pair: ReadPair, params: MinimizerParams, orientation: str
-) -> Set[Tuple[int, int]]:
+) -> set[HashPair]:
     """
     Generate all bucket keys for a read pair based on minimizers.
 
@@ -164,8 +165,8 @@ def _get_bucket_keys(
 
 
 def _assign_to_buckets(
-    read_pairs: List[ReadPair], minimizer_params: MinimizerParams, orientation: str
-) -> Dict[Tuple[int, int], List[int]]:
+    read_pairs: list[ReadPair], minimizer_params: MinimizerParams, orientation: str
+) -> dict[HashPair, list[int]]:
     """Assign read pairs to buckets by minimizers. Return a Dict {bucket_key : indices}
     where bucket_key is a tuple of ints (kmer hashes) and indices are relative to the
     input list of read pairs."""
@@ -241,7 +242,7 @@ def _read_pairs_equivalent(rp1: ReadPair, rp2: ReadPair, params: DedupParams) ->
 
 
 def _select_exemplar_by_centrality(
-    cluster: List[ReadPair], cluster_indices: List[int], graph: nx.Graph
+    cluster: dict[int, ReadPair], graph: nx.Graph
 ) -> str:
     """
     Select exemplar as the most central node in the cluster subgraph.
@@ -258,9 +259,9 @@ def _select_exemplar_by_centrality(
         Read ID of the selected exemplar
     """
     if len(cluster) == 1:
-        return cluster[0].read_id
+        return list(cluster.values())[0].read_id
 
-    subgraph = graph.subgraph(cluster_indices)
+    subgraph = graph.subgraph(cluster.keys())
 
     # Calculate eccentricity for each node (lower is more central)
     # For disconnected subgraphs, this still works per component
@@ -268,8 +269,8 @@ def _select_exemplar_by_centrality(
 
     # Build selection criteria for each read
     candidates = []
-    for idx, rp in zip(cluster_indices, cluster):
-        eccentricity = eccentricities.get(idx, float("inf"))
+    for idx, rp in cluster.items():
+        eccentricity = eccentricities[idx]
         mean_qual = rp.mean_qual()
         total_len = len(rp.fwd_seq) + len(rp.rev_seq)
 
@@ -278,15 +279,14 @@ def _select_exemplar_by_centrality(
         candidates.append((score, rp.read_id))
 
     # Select best candidate
-    candidates.sort()
-    return candidates[0][1]
+    return min(candidates)[1]
 
 
 def _build_graph(
-    read_pairs: List[ReadPair],
-    buckets: Dict[Tuple[int, int], List[int]],
+    read_pairs: list[ReadPair],
+    buckets: dict[HashPair, list[int]],
     dedup_params: DedupParams,
-) -> Tuple[nx.Graph, int]:
+) -> tuple[nx.Graph, int]:
     """Build a graph over read pairs that have already been sorted into buckets. In the
     graph, vertices are read pairs and edges represent equivalence. Returns a tuple
     (graph, n_comparisons)."""
@@ -298,6 +298,7 @@ def _build_graph(
     for bucket_indices in buckets.values():
         # Check all pairs in this bucket
         for i, j in combinations(sorted(bucket_indices), 2):
+            # (i, j) in sorted order since we sorted bucket_indices
             if (i, j) in comparisons:
                 continue
             if _read_pairs_equivalent(read_pairs[i], read_pairs[j], dedup_params):
@@ -308,11 +309,11 @@ def _build_graph(
 
 
 def deduplicate_read_pairs(
-    read_pairs: List[ReadPair],
+    read_pairs: list[ReadPair],
     dedup_params: DedupParams = DedupParams(),
     minimizer_params: MinimizerParams = MinimizerParams(),
     verbose: bool = True,
-) -> List[ReadPair]:
+) -> list[ReadPair]:
     """
     Deduplicate a list of read pairs from a single library.
 
@@ -335,11 +336,11 @@ def deduplicate_read_pairs(
     # Step 2: Find connected components and assign exemplars
     for component in nx.connected_components(graph):
         component_list = list(component)
-        cluster = [read_pairs[idx] for idx in component_list]
-        exemplar_id = _select_exemplar_by_centrality(cluster, component_list, graph)
+        cluster = {idx: read_pairs[idx] for idx in component_list}
+        exemplar_id = _select_exemplar_by_centrality(cluster, graph)
 
         # Mark all reads in cluster with their exemplar
-        for rp in cluster:
+        for rp in cluster.values():
             rp.exemplar_id = exemplar_id
 
     if verbose:

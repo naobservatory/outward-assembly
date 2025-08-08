@@ -204,21 +204,13 @@ class TestSequenceMatching:
 
     @pytest.mark.fast
     @pytest.mark.unit
-    def test_sequences_match_within_error_threshold(self):
+    def test_sequences_error_threshold(self):
         params = DedupParams(max_offset=0, max_error_frac=0.1)  # 10% error allowed
 
         # 1 error in 10bp = 10% error rate
         assert _sequences_match("AAAAAAAAAA", "AAAAAAAAAG", params)
         # 2 errors in 10bp = 20% error rate (should fail)
         assert not _sequences_match("AAAAAAAAAA", "AAAAAAAGGG", params)
-
-    @pytest.mark.fast
-    @pytest.mark.unit
-    def test_sequences_match_exceeds_threshold(self):
-        params = DedupParams(max_offset=0, max_error_frac=0.01)  # 1% error allowed
-
-        # 1 error in 10bp = 10% error rate (should fail)
-        assert not _sequences_match("AAAAAAAAAA", "AAAAAAAAAG", params)
 
     @pytest.mark.fast
     @pytest.mark.unit
@@ -408,10 +400,9 @@ class TestGraphOperations:
         graph.add_node(0)
 
         rp = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
-        cluster = [rp]
-        cluster_indices = [0]
+        cluster = {0: rp}
 
-        exemplar = _select_exemplar_by_centrality(cluster, cluster_indices, graph)
+        exemplar = _select_exemplar_by_centrality(cluster, graph)
         assert exemplar == "read1"
 
     @pytest.mark.fast
@@ -421,13 +412,12 @@ class TestGraphOperations:
         graph = nx.Graph()
         graph.add_edges_from([(0, 1), (1, 2)])
 
-        rp1 = ReadPair("readA", "AAAA", "TTTT", "IIII", "IIII")
-        rp2 = ReadPair("readB", "AAAA", "TTTT", "IIII", "IIII")
-        rp3 = ReadPair("readC", "AAAA", "TTTT", "IIII", "IIII")
-        cluster = [rp1, rp2, rp3]
-        cluster_indices = [0, 1, 2]
+        rp0 = ReadPair("readA", "AAAA", "TTTT", "IIII", "IIII")
+        rp1 = ReadPair("readB", "AAAA", "TTTT", "IIII", "IIII")
+        rp2 = ReadPair("readC", "AAAA", "TTTT", "IIII", "IIII")
+        cluster = {0: rp0, 1: rp1, 2: rp2}
 
-        exemplar = _select_exemplar_by_centrality(cluster, cluster_indices, graph)
+        exemplar = _select_exemplar_by_centrality(cluster, graph)
         assert exemplar == "readB"  # Should choose central node
 
     @pytest.mark.fast
@@ -438,13 +428,12 @@ class TestGraphOperations:
         graph.add_edges_from([(0, 1)])
 
         # Lower quality read
-        rp1 = ReadPair("readZ", "AAAA", "TTTT", "!!!!", "!!!!")  # Lower quality scores
+        rp0 = ReadPair("readZ", "AAAA", "TTTT", "!!!!", "!!!!")  # Lower quality scores
         # Higher quality read
-        rp2 = ReadPair("readA", "AAAA", "TTTT", "IIII", "IIII")  # Higher quality scores
-        cluster = [rp1, rp2]
-        cluster_indices = [0, 1]
+        rp1 = ReadPair("readA", "AAAA", "TTTT", "IIII", "IIII")  # Higher quality scores
+        cluster = {0: rp0, 1: rp1}
 
-        exemplar = _select_exemplar_by_centrality(cluster, cluster_indices, graph)
+        exemplar = _select_exemplar_by_centrality(cluster, graph)
         assert exemplar == "readA"  # Should choose higher quality read
 
 
