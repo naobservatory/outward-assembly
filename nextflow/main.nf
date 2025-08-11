@@ -1,7 +1,9 @@
 nextflow.preview.output = true
 
-// BBDUK filters the reads for those containing the target sequence (or k-mers of the target sequence)
-// Processes multiple input files per task to reduce overhead
+// BBDUK filters the reads for those containing k-mers of the target sequence
+// Input: Paired-end reads (zstd compressed and interleaved), target sequence/k-mers of target seqeunce, k used for BBDuk
+//    First input argument is a tuple (list of sample_divs, list of paths)
+// Output: Filtered forward and reverse reads that match the reference
 process BBDUK {
   label "medium"
   label "BBTools"
@@ -34,6 +36,7 @@ process BBDUK {
 }
 
 // CONCAT_READS concatenates several forward and reverse reads into a single forward and reverse read file
+// Read headers are annotated with the basename of the file they came from
 process CONCAT_READS{
   label "small"
   label "coreutils"
@@ -66,10 +69,8 @@ workflow {
       .splitCsv(header: false, sep: "\t")
       .map { row -> tuple(row[0], row[1]) }
     
-    // Batch inputs (default 10 per batch, configurable via params.batch_size)
+    // Batch inputs
     batch_size = params.batch_size ?: 10
-    
-    // Batch the tuples using collate
     batched_reads = reads
       .collate(batch_size)
       .map { batch ->
@@ -81,21 +82,20 @@ workflow {
     // Process batches
     bbduk_results = BBDUK(batched_reads, params.ref_fasta_path, params.kmer)
     
-    // Collect and filter outputs
+    // Collect and filter outputs, removing empty (no-hit) files
     fwd_reads = bbduk_results.fwd_reads
       .flatten()
       .filter { it.size() > 0 }
       .toSortedList { a, b -> 
         a.name.tokenize('_')[0] <=> b.name.tokenize('_')[0]
       }
-      
     rev_reads = bbduk_results.rev_reads
       .flatten()
       .filter { it.size() > 0 }
       .toSortedList { a, b ->
         a.name.tokenize('_')[0] <=> b.name.tokenize('_')[0]
       }
-    
+    assert fwd_reads.size() == rev_reads.size() : "Forward and reverse reads must have equal length (fwd: ${fwd_reads.size()}, rev: ${rev_reads.size()})"
     CONCAT_READS(fwd_reads, rev_reads)
 
   publish:
