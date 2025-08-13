@@ -48,6 +48,12 @@ process CONCAT_READS{
     path("reads_2.fastq"), emit: final_rev_read
   script:
     """
+    # Check that forward and reverse read counts match
+    [ \$(echo ${fwd_reads} | wc -w) -eq \$(echo ${rev_reads} | wc -w) ] || { 
+      echo "Error: Unequal number of forward (\$(echo ${fwd_reads} | wc -w)) and reverse (\$(echo ${rev_reads} | wc -w)) read files"
+      exit 1
+    }
+    
     # Process forward reads
     for fwd in ${fwd_reads}; do
       filename=\$(basename "\$fwd" _1.fastq)
@@ -95,7 +101,6 @@ workflow {
       .toSortedList { a, b ->
         a.name.tokenize('_')[0] <=> b.name.tokenize('_')[0]
       }
-    assert fwd_reads.size() == rev_reads.size() : "Forward and reverse reads must have equal length (fwd: ${fwd_reads.size()}, rev: ${rev_reads.size()})"
     CONCAT_READS(fwd_reads, rev_reads)
 
   publish:
