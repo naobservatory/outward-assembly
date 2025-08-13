@@ -29,6 +29,12 @@ jobs:
         key: conda-${{ runner.os }}-${{ hashFiles('outward_assembly_env.yml') }}
         restore-keys: |
           conda-${{ runner.os }}-
+
+    - name: Configure AWS CLI
+      run: |
+        aws configure set aws_access_key_id ${{ secrets.NAO_TESTING_ACCESS_KEY }}
+        aws configure set aws_secret_access_key ${{ secrets.NAO_TESTING_SECRET_ACCESS_KEY }}
+        aws configure set default.region us-east-1
     
     - name: Install package in development mode
       shell: bash -l {0}
@@ -40,4 +46,4 @@ jobs:
       shell: bash -l {0}
       run: |
         conda activate OutwardAssembly
-        pytest -v -m "not requires_aws"
+        pytest -v
