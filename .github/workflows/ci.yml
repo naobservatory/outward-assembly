@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Miniconda
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        auto-update-conda: true
+        python-version: "3.12"
+        miniforge-version: latest
+        activate-environment: OutwardAssembly
+        environment-file: outward_assembly_env.yml
+        use-mamba: true
+    
+    - name: Cache conda environment
+      uses: actions/cache@v4
+      with:
+        path: /usr/share/miniconda3/envs/OutwardAssembly
+        key: conda-${{ runner.os }}-${{ hashFiles('outward_assembly_env.yml') }}
+        restore-keys: |
+          conda-${{ runner.os }}-
+    
+    - name: Install package in development mode
+      shell: bash -l {0}
+      run: |
+        conda activate OutwardAssembly
+        pip install -e .
+    
+    - name: Run tests
+      shell: bash -l {0}
+      run: |
+        conda activate OutwardAssembly
+        pytest -v -m "not requires_aws"
