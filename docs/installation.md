@@ -12,14 +12,33 @@ Additionally, if one would like generate high frequency k-mers to use for the ou
 
 ## Basic requirements
 
-Baseline required dependencies are specified in the conda configuration file `outward_assembly_env.yml`. Use conda or the conda-like package manager of your choice. From the base repository directory: 
+### Python dependencies
 
+Python dependencies are managed with [uv](https://docs.astral.sh/uv/). From the base repository directory:
+
+```bash
+# Install and sync Python dependencies with uv
+uv sync --extra dev
+
+# Run Python commands with uv
+uv run python your_script.py
+uv run pytest
+
+# Or activate the virtual environment
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate     # Windows
 ```
+
+### Bioinformatics tools
+
+Bioinformatics tools are managed separately via conda. The baseline required tools are specified in the conda configuration file `outward_assembly_env.yml`. Use conda or the conda-like package manager of your choice:
+
+```bash
 conda env create -f outward_assembly_env.yml
 conda activate OutwardAssembly
-# install outward assembly itself in dev profile in the conda env
-pip install -e .
 ```
+
+**Note:** You need both uv (for Python packages) and conda (for bioinformatics tools like MEGAHIT, BBMap, etc.).
 
 ## (Optional) Batch profile
 
