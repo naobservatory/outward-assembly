@@ -21,7 +21,7 @@ Python dependencies are managed with [uv](https://docs.astral.sh/uv/). From the 
 uv sync --extra dev
 
 # Run Python commands with uv
-uv run python your_script.py
+uv run your_script.py
 uv run pytest
 
 # Or activate the virtual environment
