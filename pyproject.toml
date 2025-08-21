@@ -8,6 +8,18 @@ version = "0.1.0"
 description = "Assembly tool for growing contigs outward from a seed sequence"
 readme = "README.md"
 requires-python = ">=3.12"
+dependencies = [
+    "networkx~=3.4.2",
+    "biopython~=1.84",
+    "boto3~=1.35.81",
+    "python-dotenv~=1.0.1",
+    "pyyaml~=6.0.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest~=8.3.4",
+]
 
 [tool.pytest.ini_options]
 markers = [
