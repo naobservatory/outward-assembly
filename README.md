@@ -17,6 +17,15 @@ Although the basic algorithm is simple, in practice, getting good assembly resul
 
 Whether you're running outward assembly once or iteratively, you can find more information in the [usage docs](docs/usage.md).
 
+## Quick Start
+
+1. Install dependencies: `uv sync --extra dev`
+2. Create tools environment: `mamba env create -n oa-tools -f oa_tools_env.yml --channel-priority flexible`
+3. Activate tools environment: `mamba activate oa-tools`
+4. Run with: `uv run your_script.py`
+
+See [installation docs](docs/installation.md) for detailed setup instructions.
+
 ## Documentation
 
 - [Installation](docs/installation.md)

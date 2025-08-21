@@ -31,21 +31,24 @@ source .venv/bin/activate  # Linux/macOS
 
 ### Bioinformatics tools
 
-Bioinformatics tools are managed separately via conda. The baseline required tools are specified in the conda configuration file `outward_assembly_env.yml`. Use conda or the conda-like package manager of your choice:
-
-```bash
-conda env create -f outward_assembly_env.yml
-conda activate OutwardAssembly
-```
-
-A new **tools-only** environment is also available (`oa_tools_env.yml`) that contains just the bioinformatics tools (BBMap/BBDuk, MEGAHIT, fastp) without Python dependencies. Pipeline runs with environment activation coming soon; for now this env exists alongside the old one:
+Bioinformatics tools are managed via conda using the **tools-only** environment (`oa_tools_env.yml`) that contains just the bioinformatics tools (BBMap/BBDuk, MEGAHIT, fastp) without Python dependencies:
 
 ```bash
 mamba env create -n oa-tools -f oa_tools_env.yml --channel-priority flexible
+```
+
+**Before running the pipeline, activate the tools environment:**
+
+```bash
 mamba activate oa-tools
 ```
 
-**Note:** You need both uv (for Python packages) and conda (for bioinformatics tools like MEGAHIT, BBMap, etc.).
+Then run Python commands via uv (while the tools environment is activated):
+```bash
+uv run your_script.py
+```
+
+**Note:** You need both uv (for Python packages) and mamba/conda (for bioinformatics tools like MEGAHIT, BBMap, etc.).
 
 ## (Optional) Batch profile
 
