@@ -1,0 +1,8 @@
+name: oa-tools
+channels:
+  - bioconda
+  - conda-forge
+dependencies:
+  - bbmap=39.33
+  - megahit=1.2.9
+  - fastp=0.24.0
