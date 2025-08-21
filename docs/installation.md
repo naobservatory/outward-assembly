@@ -41,7 +41,7 @@ conda activate OutwardAssembly
 A new **tools-only** environment is also available (`oa_tools_env.yml`) that contains just the bioinformatics tools (BBMap/BBDuk, MEGAHIT, fastp) without Python dependencies. Pipeline runs with environment activation coming soon; for now this env exists alongside the old one:
 
 ```bash
-mamba env create -n oa-tools -f oa_tools_env.yml
+mamba env create -n oa-tools -f oa_tools_env.yml --channel-priority flexible
 mamba activate oa-tools
 ```
 
