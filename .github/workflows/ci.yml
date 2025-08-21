@@ -16,7 +16,7 @@ jobs:
       uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
-        python-version: "3.12"
+        python-version: "3.13"
         miniforge-version: latest
         activate-environment: oa-tools
         environment-file: oa_tools_lock.yml
