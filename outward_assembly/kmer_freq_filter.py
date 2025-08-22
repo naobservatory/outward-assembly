@@ -9,8 +9,7 @@ from typing import Optional
 
 from .io_helpers import PathLike, S3Files
 
-# Constants
-KMC_PATH = Path(__file__).parent.parent / "non-conda-deps/kmc3/bin"
+# kmc and kmc_tools are expected to be available on PATH via the oa-tools conda environment
 
 
 def _make_kmer_count_commands(
@@ -54,13 +53,13 @@ def _make_kmer_count_commands(
             f"mkdir -p {tmp_dir} {kmc_tmp_dir} && "
             f"aws s3 cp {rec.s3_path} - | "
             f"zstd -d - -o {tmp_fastq} && "
-            f"{KMC_PATH}/kmc -k{k} "  # k-mer length
+            f"kmc -k{k} "  # k-mer length
             f"-cs{max_count} "  # max count before counter saturates
             f"-ci{min_kmer_freq} "  # min count to store k-mer
             f"-t{threads} "  # number of threads
             f"-m{memory_GB} "  # max memory usage in GB
             f"{tmp_fastq} {kmc_out_prefix} {kmc_tmp_dir} && "
-            f"{KMC_PATH}/kmc_tools transform {kmc_out_prefix} dump {high_freq_out} && "
+            f"kmc_tools transform {kmc_out_prefix} dump {high_freq_out} && "
             f"rm -rf {tmp_dir}"
         )
         commands.append(cmd)
