@@ -46,3 +46,4 @@ jobs:
       run: |
         conda activate oa-tools
         uv run pytest -v -m "not requires_aws"
+
