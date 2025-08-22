@@ -6,20 +6,47 @@ Briefly, the outward assembly software has two profiles (read our [usage docs](.
 * *Local*: Run outward assembly using your local machine.
 * *Batch*: Run outward assembly using AWS Batch (via Nextflow) for distributed read searching; other algorithm steps run locally.
 
-In the situation that you want to use the *batch* profile, you will need to follow the [instructions below to install the required software](#optional-batch-profile).
-
-Additionally, if one would like generate high frequency k-mers to use for the outward assembly software, you can follow the [instructions below to install the required software](#optional-kmc).
+If you want to use the *batch* profile, you'll also need to follow the [instructions below to install the required software](#optional-batch-profile).
 
 ## Basic requirements
 
-Baseline required dependencies are specified in the conda configuration file `outward_assembly_env.yml`. Use conda or the conda-like package manager of your choice. From the base repository directory: 
+### Python dependencies
 
+Python dependencies are managed with [uv](https://docs.astral.sh/uv/). From the base repository directory:
+
+```bash
+# Install and sync Python dependencies with uv
+uv sync --extra dev
+
+# Run Python commands with uv
+uv run your_script.py
+uv run pytest
+
+# Or activate the virtual environment
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\activate     # Windows
 ```
-conda env create -f outward_assembly_env.yml
-conda activate OutwardAssembly
-# install outward assembly itself in dev profile in the conda env
-pip install -e .
+
+### Bioinformatics tools
+
+Bioinformatics tools are managed via conda using the **tools-only** environment (`oa_tools_env.yml`) that contains just the bioinformatics tools (BBMap/BBDuk, MEGAHIT, fastp, KMC) without Python dependencies:
+
+```bash
+mamba env create -n oa-tools -f oa_tools_env.yml --channel-priority flexible
 ```
+
+**Before running the pipeline, activate the tools environment:**
+
+```bash
+mamba activate oa-tools
+```
+
+Then run Python commands via uv (while the tools environment is activated):
+```bash
+uv run your_script.py
+```
+
+**Note:** You need both uv (for Python packages) and mamba/conda (for bioinformatics tools like MEGAHIT, BBMap, etc.).
 
 ## (Optional) Batch profile
 
@@ -91,6 +118,4 @@ Though each Batch job runs for just a few seconds, running outward assembly at s
 ### Seqera Tower Credentials
 Using the Batch profile requires a Seqera Tower [access token](https://docs.seqera.io/platform-cloud/api/overview). See your tokens or create a new one in the Seqera [console](https://cloud.seqera.io/tokens).
 
-## (Optional) KMC
-
-The `OutwardAssembly` conda environment does not include the kmer counting tool KMC. Kmer counting with KMC is not required for outward assembly, but you may find it helpful to use KMC to generate a list of high frequency kmers. `kmer_freq_filter.py` contains helper functions for computing high frequency kmers using KMC and creating frequency-filtered subsets of input reads. By default, these functions look for KMC's executable at `outward-assembly/non-conda-deps/kmc3/bin`. KMC binaries are available on [GitHub](https://github.com/refresh-bio/KMC/releases). 
+ 

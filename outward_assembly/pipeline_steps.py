@@ -61,7 +61,6 @@ def _assemble_contigs(workdir: PathLike, iter: int, freq_filter: bool) -> None:
         # First assembly using filtered reads
         # fmt: off
         cmd = [
-            "conda", "run", "-n", "OutwardAssembly",
             "megahit",
             "-1", str(workdir / READS_FILTERED_1_FASTQ),
             "-2", str(workdir / READS_FILTERED_2_FASTQ),
@@ -75,7 +74,6 @@ def _assemble_contigs(workdir: PathLike, iter: int, freq_filter: bool) -> None:
     # Standard assembly
     # fmt: off
     cmd = [
-        "conda", "run", "-n", "OutwardAssembly",
         "megahit",
         "-1", str(workdir / READS_1_FASTQ),
         "-2", str(workdir / READS_2_FASTQ),
@@ -89,7 +87,6 @@ def _assemble_contigs(workdir: PathLike, iter: int, freq_filter: bool) -> None:
     # More permissive assembly
     # fmt: off
     cmd = [
-        "conda", "run", "-n", "OutwardAssembly",
         "megahit",
         "-1", str(workdir / READS_1_FASTQ),
         "-2", str(workdir / READS_2_FASTQ),

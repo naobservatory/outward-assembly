@@ -1,4 +1,3 @@
-non-conda-deps/**
 **__pycache__**
 **.pyc
 outward_assembly.egg-info/*
