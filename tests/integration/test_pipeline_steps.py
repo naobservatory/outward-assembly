@@ -1,7 +1,5 @@
-import os
 import tempfile
 from pathlib import Path
-from typing import List
 
 import pytest
 from Bio import SeqIO
@@ -37,6 +35,16 @@ def temp_workdir_with_contigs():
         yield workdir
 
 
+@pytest.fixture
+def overlapping_contig(temp_workdir_with_contigs):
+    # Create an additional contig that overlaps with seed but doesn't contain it
+    megahit_dir = temp_workdir_with_contigs / "megahit_out_iter1-1"
+    contigs_path = megahit_dir / "final.contigs.fa"
+    # Add a contig with overlap to existing contigs
+    with open(contigs_path, "a") as f:
+        f.write(">contig6\nGCGCGTAATATAAAGGCC\n")  # Contains seed and overlaps with contig5
+
+
 @pytest.mark.fast
 @pytest.mark.unit
 def test_subset_contigs_multiple_seeds(temp_workdir_with_contigs):
@@ -68,11 +76,36 @@ def test_subset_contigs_multiple_seeds(temp_workdir_with_contigs):
     assert "contig5" not in contig_ids
 
 
-@pytest.mark.parametrize("include_overlaps", (False, True))
 @pytest.mark.fast
 @pytest.mark.unit
-def test_subset_contigs_preserves_seed_orientation(temp_workdir_with_contigs, include_overlaps):
-    """Test _subset_contigs with multiple seed sequences."""
+def test_subset_contigs_with_overlaps(temp_workdir_with_contigs, overlapping_contig):
+    """Test _subset_contigs with include_overlaps parameter."""
+    workdir = temp_workdir_with_contigs
+    megahit_dir = temp_workdir_with_contigs / "megahit_out_iter1-1"
+
+    # Define seeds
+    seed_seqs = [Seq("ATATAAAGGCC")]
+
+    # Run subset_contigs with include_overlaps=True
+    _subset_contigs(workdir, iter=1, seed_seqs=seed_seqs, include_overlaps=True)
+
+    # Check output
+    filtered_path = megahit_dir / "contigs_filtered.fasta"
+    filtered_contigs = list(SeqIO.parse(filtered_path, "fasta"))
+
+    # Should include contig5 due to overlap
+    contig_ids = [rec.id for rec in filtered_contigs]
+    assert len(contig_ids) == 2
+    assert "contig5" in contig_ids
+
+
+@pytest.mark.fast
+@pytest.mark.unit
+def test_subset_contigs_preserves_seed_orientation(temp_workdir_with_contigs):
+    """
+    Test that _subset_contigs returns contig sequences in the forward orientation with respect
+    to the seed sequence
+    """
     workdir = temp_workdir_with_contigs
 
     seed_seqs = [
@@ -80,7 +113,7 @@ def test_subset_contigs_preserves_seed_orientation(temp_workdir_with_contigs, in
     ]
 
     # Run subset_contigs
-    _subset_contigs(workdir, iter=1, seed_seqs=seed_seqs, include_overlaps=include_overlaps)
+    _subset_contigs(workdir, iter=1, seed_seqs=seed_seqs, include_overlaps=False)
 
     # Check output
     filtered_path = workdir / "megahit_out_iter1-1" / "contigs_filtered.fasta"
@@ -92,36 +125,40 @@ def test_subset_contigs_preserves_seed_orientation(temp_workdir_with_contigs, in
     # Check that contigs were returned in a forward orientation with respect to the seed
     contig_sequences = {str(rec.seq) for rec in filtered_contigs}
     assert {
-        "GGGGGGAAAAAACCCCCC",  # contig3
         "AAAAAAAAAAAAAAAAA",  # reverse complement of contig2
+        "GGGGGGAAAAAACCCCCC",  # contig3
     } == contig_sequences
 
 
 @pytest.mark.fast
 @pytest.mark.unit
-def test_subset_contigs_with_overlaps(temp_workdir_with_contigs):
-    """Test _subset_contigs with include_overlaps parameter."""
+def test_subset_contigs_preserves_seed_orientation_for_overlaps(
+    temp_workdir_with_contigs, overlapping_contig
+):
+    """
+    Test that when _subset_contigs returns overlapping contigs (that don't contain a seed
+    themselves but overlap with a contig that does), the overlapping contigs are also in the
+    forward direction with respect to the seed
+    """
     workdir = temp_workdir_with_contigs
 
-    # Define seeds
-    seed_seqs = [Seq("ATATAAAGGCC")]
+    seed_seqs = [
+        Seq("GGCCTTTATAT"),  # RC in contig5, which overlaps with contig6
+    ]
 
-    # Create an additional contig that overlaps with seed but doesn't contain it
-    megahit_dir = workdir / "megahit_out_iter1-1"
-    contigs_path = megahit_dir / "final.contigs.fa"
-    # Add a contig with overlap to existing contigs
-    with open(contigs_path, "a") as f:
-        f.write(
-            ">contig6\nGCGCGTAATATAAAGGCC\n"
-        )  # Contains seed and overlaps with contig5
-
-    # Run subset_contigs with include_overlaps=True
+    # Run subset_contigs
     _subset_contigs(workdir, iter=1, seed_seqs=seed_seqs, include_overlaps=True)
 
     # Check output
-    filtered_path = megahit_dir / "contigs_filtered.fasta"
+    filtered_path = workdir / "megahit_out_iter1-1" / "contigs_filtered.fasta"
     filtered_contigs = list(SeqIO.parse(filtered_path, "fasta"))
 
-    # Should include contig5 due to overlap
-    contig_ids = [rec.id for rec in filtered_contigs]
-    assert "contig5" in contig_ids
+    # Should find 2 contigs (RC in contig5, contig5 overlaps in contig6)
+    assert len(filtered_contigs) == 2
+
+    # Check that contigs were returned in a forward orientation with respect to the seed
+    contig_sequences = {str(rec.seq) for rec in filtered_contigs}
+    assert {
+        "TACGCGCCTCGCCATCGTCTAT",  # reverse compliment of contig5
+        "GGCCTTTATATTACGCGC",  # reverse compliment of contig6
+    } == contig_sequences
