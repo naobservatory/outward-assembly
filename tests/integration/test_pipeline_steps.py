@@ -1,6 +1,7 @@
 import os
 import tempfile
 from pathlib import Path
+from typing import List
 
 import pytest
 from Bio import SeqIO
@@ -65,6 +66,35 @@ def test_subset_contigs_multiple_seeds(temp_workdir_with_contigs):
     assert "contig3" in contig_ids
     assert "contig4" in contig_ids
     assert "contig5" not in contig_ids
+
+
+@pytest.mark.parametrize("include_overlaps", (False, True))
+@pytest.mark.fast
+@pytest.mark.unit
+def test_subset_contigs_preserves_seed_orientation(temp_workdir_with_contigs, include_overlaps):
+    """Test _subset_contigs with multiple seed sequences."""
+    workdir = temp_workdir_with_contigs
+
+    seed_seqs = [
+        Seq("AAAAAA"),  # in contig3, RC in contig2
+    ]
+
+    # Run subset_contigs
+    _subset_contigs(workdir, iter=1, seed_seqs=seed_seqs, include_overlaps=include_overlaps)
+
+    # Check output
+    filtered_path = workdir / "megahit_out_iter1-1" / "contigs_filtered.fasta"
+    filtered_contigs = list(SeqIO.parse(filtered_path, "fasta"))
+
+    # Should find 2 contigs (forward in contig3 and reverse in contig2)
+    assert len(filtered_contigs) == 2
+
+    # Check that contigs were returned in a forward orientation with respect to the seed
+    contig_sequences = {str(rec.seq) for rec in filtered_contigs}
+    assert {
+        "GGGGGGAAAAAACCCCCC",  # contig3
+        "AAAAAAAAAAAAAAAAA",  # reverse complement of contig2
+    } == contig_sequences
 
 
 @pytest.mark.fast
