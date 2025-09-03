@@ -1,10 +1,8 @@
 import warnings
-from typing import List, Sequence
+from typing import Dict, List, Sequence
 
 import networkx as nx
 from Bio.Seq import Seq
-
-from .basic_seq_operations import is_subseq
 
 
 def _seqs_overlap_single(
@@ -119,8 +117,8 @@ def _overlap_graph(
 
 
 def overlap_inds(
-    seqs: Sequence[str | Seq], seed_seqs: List[Seq], n_0_error: int, n_1_error: int
-) -> List[int]:
+    seqs: Sequence[str | Seq], subset_seqs: Dict[int, bool], n_0_error: int, n_1_error: int
+) -> Dict[int, bool]:
     """Get indices of sequences that are in a connected component with any seed sequence.
 
     Computes indices of sequences in seqs that are in a connected component with any
@@ -129,7 +127,9 @@ def overlap_inds(
 
     Args:
         seqs: Sequences to analyze
-        seed_seqs: List of seed sequences to find in connected components
+        subset_seqs: Dict whose keys are indices into above list corresponding to sequences that
+            have the seed sequence, and whose values are bools corresponding to whether the
+            sequence is in forward orientation (True) or reverse orientation (False)
         n_0_error: Minimum overlap length for exact match
         n_1_error: Minimum overlap length when allowing 1 mismatch
 
@@ -137,17 +137,18 @@ def overlap_inds(
         List of indices into seqs of sequences in connected components with any seed sequence
     """
     seqs = [Seq(s) if isinstance(s, str) else s for s in seqs]
-    seed_seqs = [Seq(s) if isinstance(s, str) else s for s in seed_seqs]
 
     g = _overlap_graph(seqs, n_0_error, n_1_error)
+    components: List[set] = nx.connected_components(g)
+
     # Find sequences containing seeds as substrings (is_subseq check)
-    seed_inds = [
-        i
-        for i, seq in enumerate(seqs)
-        if any(is_subseq(seed, seq, check_rc=True) for seed in seed_seqs)
-    ]
+    # Get the indices of all sequences that have a seed
 
-    components = nx.connected_components(g)
-    seed_components = [cc for cc in components if any(i in cc for i in seed_inds)]
-
-    return sorted(set().union(*seed_components)) if seed_components else []
+    # Get all sets (connected components) of indices, where at least one index corresponds to a
+    # seed-containing sequence
+    seed_components: Dict[int, bool] = {}
+    for component_set in components:
+        for idx, is_reverse_complement in subset_seqs.items():
+            if idx in component_set:
+                seed_components.update({c: is_reverse_complement for c in component_set})
+    return seed_components

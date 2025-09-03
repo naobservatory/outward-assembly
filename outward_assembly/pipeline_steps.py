@@ -4,12 +4,13 @@ import subprocess
 import textwrap
 from multiprocessing import cpu_count
 from pathlib import Path
-from typing import List, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional
 
 from Bio import SeqIO
 from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
-from .basic_seq_operations import is_subseq
+from .basic_seq_operations import contig_ids_by_seed
 from .io_helpers import PathLike, S3Files, concat_and_tag_fastq
 from .overlap_graph import overlap_inds
 
@@ -135,24 +136,34 @@ def _subset_contigs(
         if d.is_dir() and d.name.startswith(f"{MEGAHIT_OUT_PREFIX}{iter}-")
     ]
 
+    # Find each of 3 megahit subiterations (outputs of 3 different assemblies)
     for subiter_dir in subiter_dirs:
         contigs_path = subiter_dir / MEGAHIT_FINAL_CONTIGS
         if not contigs_path.is_file():
             continue
 
         subset_path = subiter_dir / MEGAHIT_FILTERED_CONTIGS
-        records = list(SeqIO.parse(contigs_path, "fasta"))
+        records: List[SeqRecord] = list(SeqIO.parse(contigs_path, "fasta"))
+
+        filtered_records = []
+
+        # Get the indices of all contigs that have seeds in them, along with their orientation
+        # with respect to the seed. 
+        subsetted_ids_and_orientations: Dict[int, bool] = contig_ids_by_seed(records, seed_seqs)
 
         if include_overlaps:
             seqs = [rec.seq for rec in records]
-            retain_inds = overlap_inds(seqs, seed_seqs, overlap_n0, overlap_n1)
-            filtered_records = [records[i] for i in retain_inds]
-        else:
-            filtered_records = [
-                rec
-                for rec in records
-                if any(is_subseq(seed, rec.seq, check_rc=True) for seed in seed_seqs)
-            ]
+            subsetted_ids_and_orientations = overlap_inds(
+                seqs, subsetted_ids_and_orientations, overlap_n0, overlap_n1
+            )
+
+        for idx, is_forward_orientation in subsetted_ids_and_orientations.items():
+            record = records[idx]
+            if record.seq is not None and not is_forward_orientation:
+                # Contig is in the reverse direction with respect to the seed. We want to report
+                # it as forward with respect to the seed, so take the reverse compliment
+                record.seq = record.seq.reverse_complement()
+            filtered_records.append(record)
 
         SeqIO.write(filtered_records, subset_path, "fasta")
 
