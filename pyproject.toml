@@ -18,7 +18,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "black",
     "pytest~=8.3.4",
+    "ruff",
 ]
 
 [tool.pytest.ini_options]
@@ -34,3 +36,17 @@ markers = [
 
 [tool.setuptools]
 packages = ["outward_assembly"]
+
+[tool.black]
+line-length = 92
+
+[tool.ruff.lint]
+select = [
+    "E",     # Pycodestyle
+    "F",     # Pyflakes  
+    "I",     # isort
+    "PERF",  # Performance anti-patterns
+]
+ignore = [
+    "E203",  # Whitespace before ':' (use black's style)
+]

@@ -6,7 +6,8 @@ on:
   pull_request:
 
 jobs:
-  test:
+  lint_and_test:
+    name: Lint and Test
     runs-on: ubuntu-latest
     
     steps:
@@ -47,3 +48,10 @@ jobs:
         conda activate oa-tools
         uv run pytest -v -m "not requires_aws"
 
+    - name: ruff
+      run: |
+        ruff check outward_assembly tests
+
+    - name: black
+      run: |
+        black --check outward_assembly tests
