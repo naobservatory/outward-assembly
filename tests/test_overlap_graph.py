@@ -1,8 +1,6 @@
 import pytest
-from Bio.Seq import Seq
 
-from outward_assembly.basic_seq_operations import is_subseq
-from outward_assembly.overlap_graph import overlap_inds, seqs_overlap
+from outward_assembly.overlap_graph import overlap_inds
 
 
 @pytest.mark.fast
@@ -21,13 +19,13 @@ def test_overlap_inds_multiple_seeds():
     ]
 
     # Define seeds
-    seed_seqs = [
-        Seq("TACGTA"),  # seed0: contained in seq0
-        Seq("GAAAACCC"),  # seed1: contained in seq3
-    ]
+    seq_ids_containing_seeds = {
+        0: True,  # seq0: forward direction
+        3: True,  # seq3: forward direction
+    }
 
     # Test connected component behavior
-    result = overlap_inds(seqs, seed_seqs, n_0_error=5, n_1_error=7)
+    result = overlap_inds(seqs, seq_ids_containing_seeds, n_0_error=5, n_1_error=7)
 
     # Should include sequences containing seeds and those connected to them
     assert sorted(result) == [0, 1, 2, 3, 4]

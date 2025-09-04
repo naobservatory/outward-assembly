@@ -127,9 +127,9 @@ def overlap_inds(
 
     Args:
         seqs: Sequences to analyze
-        subset_seqs: Dict whose keys are indices into above list corresponding to sequences that
-            have the seed sequence, and whose values are bools corresponding to whether the
-            sequence is in forward orientation (True) or reverse orientation (False)
+        subset_seqs: Dict to use to subset the above the sequences. The keys of this dict are
+            indices of seqs, corresponding to sequences that contain a seed. The values of the
+            dict are the orientation
         n_0_error: Minimum overlap length for exact match
         n_1_error: Minimum overlap length when allowing 1 mismatch
 
@@ -139,7 +139,7 @@ def overlap_inds(
     seqs = [Seq(s) if isinstance(s, str) else s for s in seqs]
 
     g = _overlap_graph(seqs, n_0_error, n_1_error)
-    components: List[set] = nx.connected_components(g)
+    components = nx.connected_components(g)
 
     # Find sequences containing seeds as substrings (is_subseq check)
     # Get the indices of all sequences that have a seed

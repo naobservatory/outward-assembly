@@ -28,8 +28,8 @@ def is_subseq(needle: str | Seq, haystack: str | Seq, check_rc: bool = True) -> 
 
 def contig_ids_by_seed(records: List[SeqRecord], seed_seqs: List[Seq]) -> Dict[int, bool]:
     """
-    Given a list of SeqRecord contigs, that contain any of the seed sequences or their reverse
-    complements. Contigs are returned in forward orientation with respect to the seed.
+    Given a list of contigs and a list of seed sequences, returns the indices of contigs that 
+    contain at least one seed, along with the orientation of the contig with respect to the seed.
 
     Args:
         records: List of SeqRecord objects representing contigs
