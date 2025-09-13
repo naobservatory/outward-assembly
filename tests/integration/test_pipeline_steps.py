@@ -56,7 +56,7 @@ def overlapping_contig_reverse(temp_workdir_with_contigs):
     """
     megahit_dir = temp_workdir_with_contigs / "megahit_out_iter1-1"
     contigs_path = megahit_dir / "final.contigs.fa"
-    # Create an additional contig that overlaps with contig 5
+    # Create an additional contig that overlaps with RC of contig 5
     with open(contigs_path, "a") as f:
         f.write(">contig7\nCGTCTATATATATATAT\n")
 

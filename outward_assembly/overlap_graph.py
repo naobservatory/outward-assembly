@@ -131,26 +131,26 @@ def _overlap_graph(seqs: Sequence[str | Seq], n_0_error: int, n_1_error: int) ->
 
 
 def _traverse_subgraph_and_orient(
-    g: nx.Graph, seed_contig_idx: int, seed_orientation: SeqOrientation
+    g: nx.Graph, reference_seq_idx: int, reference_seq_orientation: SeqOrientation
 ) -> Dict[int, SeqOrientation]:
     """
-    Given a graph where the nodes are contigs and edges represent connected (overlapping)
-    contigs, find all nodes in a connected component with seed_contig_idx, and return
-    them all in the proper orientation with respect to seed_contig_idx. The seed contig's
-    neighbors are traversed via BFS.
+    Given a graph of overlapping sequences, and the index of a reference sequence, finds
+    all sequences that are connected to the reference, and returns them along with their
+    orientations with respect to the reference. The graph is traversed via BFS to find
+    all nodes connected to the reference.
 
     Args:
-        g: A networkx graph whose nodes represent contigs. For every pair of contigs A and
+        g: A networkx graph whose nodes represent sequences. For every pair of nodes A and
            B, there is an edge between A and B iff the sequences of A and B overlap, and
            the edge is annotated with the metadata key "orientation", whose value is the
-           relative orientation of A and B (forward or reverse)
-        seed_contig_idx: The contig to return all connected components for
-        seed_orientation: The initial orientation of the seed contig
+           relative orientation those sequences (forward or reverse compliment)
+        reference_seq_idx: The sequence for which to find all connected sequences
+        reference_seq_orientation: The initial orientation of the reference sequence
     """
-    orientations: Dict[int, SeqOrientation] = {seed_contig_idx: seed_orientation}
+    orientations: Dict[int, SeqOrientation] = {reference_seq_idx: reference_seq_orientation}
     # Queue of nodes whose neighbors we want to traverse next in the breadth-first search
-    bfs_queue = deque([seed_contig_idx])
-    visited = {seed_contig_idx}
+    bfs_queue = deque([reference_seq_idx])
+    visited = {reference_seq_idx}
 
     while bfs_queue:
         current = bfs_queue.popleft()
@@ -172,48 +172,55 @@ def _traverse_subgraph_and_orient(
     return orientations
 
 
-def overlap_inds(
+def get_overlapping_sequence_ids(
     seqs: Sequence[str | Seq],
     subset_seqs: Dict[int, SeqOrientation],
     n_0_error: int,
     n_1_error: int,
 ) -> Dict[int, SeqOrientation]:
-    """Get indices of sequences that are in a connected component with any seed sequence.
+    """
+    Get indices of sequences that are in a connected component with any seed-containing
+    sequence, where connectedness is determined by overlapping sequences.
 
     Computes indices of sequences in seqs that are in a connected component with any
     sequence containing any of the seed sequences (or its reverse complement) according
-    to the overlap graph. Returns 0-based indices.
+    to the overlap graph. Returns 0-based indices, along with the relative orientation of
+    each sequence with respect to the seed.
 
     Args:
         seqs: Sequences to analyze
-        subset_seqs: Dict to use to subset the above the sequences. The keys of this dict are
+        subset_seqs: Dict to use to subset the above sequences. The keys of this dict are
             indices of seqs, corresponding to sequences that contain a seed, and the values
             are the orientation of each sequence relative to the seed it contains
         n_0_error: Minimum overlap length for exact match
         n_1_error: Minimum overlap length when allowing 1 mismatch
 
     Returns:
-        List of indices into seqs of sequences in connected components with any seed sequence
+        Dict whose keys are indices into seqs of sequences in connected components with any
+        seed-containing sequence, and whose values are the relative orientation of the seq
+        with respect to the seed
     """
     seqs = [Seq(s) if isinstance(s, str) else s for s in seqs]
 
-    # Construct a graph where nodes are contigs and edges represent overlaps between
-    # contigs
+    # Construct a graph where nodes are sequences and edges represent overlaps between
+    # sequences
     g = _overlap_graph(seqs, n_0_error, n_1_error)
 
     all_connected_contigs: Dict[int, SeqOrientation] = {}
 
-    # Search for contigs that are connected to seed-containing contigs
+    # Search for sequences that are connected to seed-containing sequences
     for seed_contig_idx, seed_contig_orientation in subset_seqs.items():
         if seed_contig_idx in all_connected_contigs:
-            # We've already seen this contig before in a previous connected component, so
+            # We've already seen this sequence before in a previous connected component, so
             # don't process it again
             continue
 
-        # Get all contigs that are connected to this seed-containing contig, along with
-        # their orientation relative to this seed-containing contig
+        # Get all sequences that are connected to this seed-containing sequence, along with
+        # their orientation relative to this seed-containing sequence
         oriented_connected_contigs = _traverse_subgraph_and_orient(
-            g, seed_contig_idx=seed_contig_idx, seed_orientation=seed_contig_orientation
+            g,
+            reference_seq_idx=seed_contig_idx,
+            reference_seq_orientation=seed_contig_orientation,
         )
         all_connected_contigs.update(oriented_connected_contigs)
 

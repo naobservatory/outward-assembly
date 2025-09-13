@@ -12,7 +12,7 @@ from Bio.SeqRecord import SeqRecord
 
 from .basic_seq_operations import SeqOrientation, contig_ids_by_seed
 from .io_helpers import PathLike, S3Files, concat_and_tag_fastq
-from .overlap_graph import overlap_inds
+from .overlap_graph import get_overlapping_sequence_ids
 
 # File names used across functions
 CURRENT_CONTIGS = "current_contigs.fasta"
@@ -125,7 +125,8 @@ def _subset_contigs(
         workdir: Working directory containing megahit output
         iter: Current iteration number
         seed_seqs: Seed sequences to search for
-        include_overlaps: Whether to include contigs in connected components
+        include_overlaps: Whether to include contigs that do not contain a seed themselves,
+            but are connected via overlapping sequences with a contig that does
         overlap_n0: Minimum overlap length for exact matches
         overlap_n1: Minimum overlap length when allowing 1 error
     """
@@ -155,7 +156,7 @@ def _subset_contigs(
 
         if include_overlaps:
             seqs = [rec.seq for rec in records]
-            subsetted_ids_and_orientations = overlap_inds(
+            subsetted_ids_and_orientations = get_overlapping_sequence_ids(
                 seqs, subsetted_ids_and_orientations, overlap_n0, overlap_n1
             )
 

@@ -2,7 +2,10 @@ import networkx
 import pytest
 
 from outward_assembly.basic_seq_operations import SeqOrientation
-from outward_assembly.overlap_graph import _traverse_subgraph_and_orient, overlap_inds
+from outward_assembly.overlap_graph import (
+    _traverse_subgraph_and_orient,
+    get_overlapping_sequence_ids,
+)
 
 
 @pytest.mark.fast
@@ -27,7 +30,9 @@ def test_overlap_inds_multiple_seeds():
     }
 
     # Test connected component behavior
-    result = overlap_inds(seqs, seq_ids_containing_seeds, n_0_error=5, n_1_error=7)
+    result = get_overlapping_sequence_ids(
+        seqs, seq_ids_containing_seeds, n_0_error=5, n_1_error=7
+    )
 
     # Should include sequences containing seeds and those connected to them
     assert sorted(result) == [0, 1, 2, 3, 4]
@@ -43,12 +48,12 @@ def test_traverse_subgraph_and_orient(initial_orientation):
     connected components and re-orients them all with respect to the initial node's
     orientation.
 
-    The initial graph looks like:
+    The overlap graph looks like this, and we will orient all nodes with respect to node 2:
     0 --fwd-- 1 --rev-- 2 --fwd-- 3     5
-                            |
-                            --rev-- 4
-    And we are trying to orient all nodes with respect to node 2.
+                        |
+                        --rev-- 4
     """
+    # Construct overlap graph
     g = networkx.Graph()
     g.add_nodes_from([0, 1, 2, 3, 4, 5])
     g.add_edge(0, 1, orientation=SeqOrientation.FORWARD)
@@ -56,7 +61,9 @@ def test_traverse_subgraph_and_orient(initial_orientation):
     g.add_edge(2, 3, orientation=SeqOrientation.FORWARD)
     g.add_edge(2, 4, orientation=SeqOrientation.REVERSE)
 
-    oriented_connected_components = _traverse_subgraph_and_orient(g, 2, initial_orientation)
+    oriented_connected_components = _traverse_subgraph_and_orient(
+        g, reference_seq_idx=2, reference_seq_orientation=initial_orientation
+    )
     expected_orientations = {
         0: SeqOrientation.REVERSE,
         1: SeqOrientation.REVERSE,
