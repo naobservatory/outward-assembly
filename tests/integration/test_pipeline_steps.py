@@ -37,12 +37,28 @@ def temp_workdir_with_contigs():
 
 @pytest.fixture
 def overlapping_contig(temp_workdir_with_contigs):
-    # Create an additional contig that overlaps with seed but doesn't contain it
+    """
+    Adds an additional contig to temp_workdir_with_contigs. This new contig overlaps with
+    contig 5
+    """
     megahit_dir = temp_workdir_with_contigs / "megahit_out_iter1-1"
     contigs_path = megahit_dir / "final.contigs.fa"
-    # Add a contig with overlap to existing contigs
+    # Create an additional contig that overlaps with contig 5
     with open(contigs_path, "a") as f:
-        f.write(">contig6\nGCGCGTAATATAAAGGCC\n")  # Contains seed and overlaps with contig5
+        f.write(">contig6\nGCGCGTAATATAAAGGCC\n")
+
+
+@pytest.fixture
+def overlapping_contig_reverse(temp_workdir_with_contigs):
+    """
+    Adds an additional contig to temp_workdir_with_contigs. This new contig overlaps with
+    the reverse complement of contig 5
+    """
+    megahit_dir = temp_workdir_with_contigs / "megahit_out_iter1-1"
+    contigs_path = megahit_dir / "final.contigs.fa"
+    # Create an additional contig that overlaps with contig 5
+    with open(contigs_path, "a") as f:
+        f.write(">contig7\nCGTCTATATATATATAT\n")
 
 
 @pytest.mark.fast
@@ -133,7 +149,7 @@ def test_subset_contigs_preserves_seed_orientation(temp_workdir_with_contigs):
 @pytest.mark.fast
 @pytest.mark.unit
 def test_subset_contigs_preserves_seed_orientation_for_overlaps(
-    temp_workdir_with_contigs, overlapping_contig
+    temp_workdir_with_contigs, overlapping_contig, overlapping_contig_reverse
 ):
     """
     Test that when _subset_contigs returns overlapping contigs (that don't contain a seed
@@ -142,8 +158,11 @@ def test_subset_contigs_preserves_seed_orientation_for_overlaps(
     """
     workdir = temp_workdir_with_contigs
 
+    # This seed is present in the RC of contig5. Contig5 overlaps with contig6, and the RC
+    # of contig5 overlaps with contig6. So, once we orient all three contigs with respect
+    # to the seed, we expect to see: contig5 in RC, contig6 in RC, and contig7 in forward.
     seed_seqs = [
-        Seq("GGCCTTTATAT"),  # RC in contig5, which overlaps with contig6
+        Seq("GGCCTTTATAT"),
     ]
 
     # Run subset_contigs
@@ -154,11 +173,12 @@ def test_subset_contigs_preserves_seed_orientation_for_overlaps(
     filtered_contigs = list(SeqIO.parse(filtered_path, "fasta"))
 
     # Should find 2 contigs (RC in contig5, contig5 overlaps in contig6)
-    assert len(filtered_contigs) == 2
+    assert len(filtered_contigs) == 3
 
     # Check that contigs were returned in a forward orientation with respect to the seed
     contig_sequences = {str(rec.seq) for rec in filtered_contigs}
     assert {
         "TACGCGCCTCGCCATCGTCTAT",  # reverse compliment of contig5
         "GGCCTTTATATTACGCGC",  # reverse compliment of contig6
+        "CGTCTATATATATATAT",  # contig7 (forward)
     } == contig_sequences

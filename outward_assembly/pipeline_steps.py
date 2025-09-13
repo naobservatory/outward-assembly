@@ -10,7 +10,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from .basic_seq_operations import contig_ids_by_seed
+from .basic_seq_operations import SeqOrientation, contig_ids_by_seed
 from .io_helpers import PathLike, S3Files, concat_and_tag_fastq
 from .overlap_graph import overlap_inds
 
@@ -136,7 +136,7 @@ def _subset_contigs(
         if d.is_dir() and d.name.startswith(f"{MEGAHIT_OUT_PREFIX}{iter}-")
     ]
 
-    # Find each of 3 megahit subiterations (outputs of 3 different assemblies)
+    # Find the assembly output of each megahit subiteration
     for subiter_dir in subiter_dirs:
         contigs_path = subiter_dir / MEGAHIT_FINAL_CONTIGS
         if not contigs_path.is_file():
@@ -148,8 +148,10 @@ def _subset_contigs(
         filtered_records = []
 
         # Get the indices of all contigs that have seeds in them, along with their orientation
-        # with respect to the seed. 
-        subsetted_ids_and_orientations: Dict[int, bool] = contig_ids_by_seed(records, seed_seqs)
+        # with respect to the seed.
+        subsetted_ids_and_orientations: Dict[int, SeqOrientation] = contig_ids_by_seed(
+            records, seed_seqs
+        )
 
         if include_overlaps:
             seqs = [rec.seq for rec in records]
@@ -157,9 +159,9 @@ def _subset_contigs(
                 seqs, subsetted_ids_and_orientations, overlap_n0, overlap_n1
             )
 
-        for idx, is_forward_orientation in subsetted_ids_and_orientations.items():
+        for idx, orientation in subsetted_ids_and_orientations.items():
             record = records[idx]
-            if record.seq is not None and not is_forward_orientation:
+            if record.seq is not None and orientation == SeqOrientation.REVERSE:
                 # Contig is in the reverse direction with respect to the seed. We want to report
                 # it as forward with respect to the seed, so take the reverse compliment
                 record.seq = record.seq.reverse_complement()
@@ -353,9 +355,7 @@ def _subset_split_files_local(
     # Concatenate per-split hits
     for read_num in (1, 2):
         output_path = workdir / f"reads_{read_num}.fastq"
-        split_files = [
-            workdir / f"{rec.filename}_{read_num}.fastq" for rec in s3_records
-        ]
+        split_files = [workdir / f"{rec.filename}_{read_num}.fastq" for rec in s3_records]
         concat_and_tag_fastq(split_files, output_path)
         for split_file in split_files:
             (workdir / split_file).unlink()
