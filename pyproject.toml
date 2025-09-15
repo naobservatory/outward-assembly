@@ -49,4 +49,5 @@ select = [
 ]
 ignore = [
     "E203",  # Whitespace before ':' (use black's style)
+    "E501",  # Line too long (let black handle this)
 ]
