@@ -50,8 +50,10 @@ jobs:
 
     - name: ruff
       run: |
-        ruff check outward_assembly tests
+        conda activate oa-tools
+        uv run ruff check outward_assembly tests
 
     - name: black
       run: |
-        black --check outward_assembly tests
+        conda activate oa-tools
+        uv run black --check outward_assembly tests
