@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import Dict, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict
+
 import yaml
 
 DEFAULT_COMPUTE_TIME_LIMIT = "5 hours"

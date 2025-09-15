@@ -1,11 +1,12 @@
-from typing import List, Callable
+from typing import Callable, List
+
+from .actions import decrease_k, increase_k, next_priority
 from .strategy_helper import (
     CONTIG_COUNT,
     LONGEST_CONTIG,
     READ_PAIR_COUNT,
     OutwardAssemblyMetrics,
 )
-from .actions import increase_k, decrease_k, next_priority
 
 """
 Strategies: 

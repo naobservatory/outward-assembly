@@ -1,7 +1,7 @@
 import csv
 import itertools
-import re
 import os
+import re
 from pathlib import Path
 from typing import Iterable, List, NamedTuple
 

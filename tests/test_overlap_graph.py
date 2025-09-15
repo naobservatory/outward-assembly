@@ -1,8 +1,7 @@
 import pytest
 from Bio.Seq import Seq
 
-from outward_assembly.basic_seq_operations import is_subseq
-from outward_assembly.overlap_graph import overlap_inds, seqs_overlap
+from outward_assembly.overlap_graph import overlap_inds
 
 
 @pytest.mark.fast

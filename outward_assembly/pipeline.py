@@ -1,10 +1,11 @@
+import json
 import logging
 import shutil
 import tempfile
-from pathlib import Path
 import time
+from pathlib import Path
 from typing import List, Optional, TypedDict
-import json
+
 from Bio import SeqIO
 from Bio.Seq import Seq
 
@@ -21,12 +22,12 @@ from .pipeline_steps import (
     _assemble_contigs,
     _choose_best_subiter,
     _copy_iteration_reads,
+    _fasta_longest_total,
     _frequency_filter_reads,
     _prepare_query_seqs,
     _record_inputs,
     _subset_contigs,
     _subset_split_files,
-    _fasta_longest_total,
 )
 
 logger = logging.getLogger(__name__)

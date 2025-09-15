@@ -10,8 +10,8 @@ import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
 from itertools import combinations
-from zlib import crc32
 from typing import Literal, Optional
+from zlib import crc32
 
 import networkx as nx
 
