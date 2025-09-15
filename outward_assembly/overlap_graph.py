@@ -51,9 +51,7 @@ def _seqs_overlap_single(
     return False
 
 
-def seqs_overlap(
-    seq1: str | Seq, seq2: str | Seq, n_0_error: int, n_1_error: int
-) -> bool:
+def seqs_overlap(seq1: str | Seq, seq2: str | Seq, n_0_error: int, n_1_error: int) -> bool:
     """Return whether two sequences overlap by at least n_0_error bases with no errors
     or n_1_error bases with at most 1 error. Detects reverse complement overlaps.
 
@@ -86,9 +84,7 @@ def seqs_overlap(
     )
 
 
-def _overlap_graph(
-    seqs: Sequence[str | Seq], n_0_error: int, n_1_error: int
-) -> nx.Graph:
+def _overlap_graph(seqs: Sequence[str | Seq], n_0_error: int, n_1_error: int) -> nx.Graph:
     """Create simple graph with seqs at vertices and edges when sequences overlap.
 
     Two sequences are considered overlapping if they share n_0_error bases with

@@ -146,12 +146,10 @@ def _get_bucket_keys(
     """
     # Extract minimizers from each window
     fwd_hashes = [
-        _extract_minimizer(read_pair.fwd_seq, i, params)
-        for i in range(params.num_windows)
+        _extract_minimizer(read_pair.fwd_seq, i, params) for i in range(params.num_windows)
     ]
     rev_hashes = [
-        _extract_minimizer(read_pair.rev_seq, i, params)
-        for i in range(params.num_windows)
+        _extract_minimizer(read_pair.rev_seq, i, params) for i in range(params.num_windows)
     ]
 
     # Generate all hash pairs
@@ -242,9 +240,7 @@ def _read_pairs_equivalent(rp1: ReadPair, rp2: ReadPair, params: DedupParams) ->
 ##
 
 
-def _select_exemplar_by_centrality(
-    cluster: dict[int, ReadPair], graph: nx.Graph
-) -> str:
+def _select_exemplar_by_centrality(cluster: dict[int, ReadPair], graph: nx.Graph) -> str:
     """
     Select exemplar as the most central node in the cluster subgraph.
 

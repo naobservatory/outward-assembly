@@ -81,9 +81,7 @@ def test_subset_contigs_with_overlaps(temp_workdir_with_contigs):
     contigs_path = megahit_dir / "final.contigs.fa"
     # Add a contig with overlap to existing contigs
     with open(contigs_path, "a") as f:
-        f.write(
-            ">contig6\nGCGCGTAATATAAAGGCC\n"
-        )  # Contains seed and overlaps with contig5
+        f.write(">contig6\nGCGCGTAATATAAAGGCC\n")  # Contains seed and overlaps with contig5
 
     # Run subset_contigs with include_overlaps=True
     _subset_contigs(workdir, iter=1, seed_seqs=seed_seqs, include_overlaps=True)
