@@ -1,7 +1,12 @@
 import pytest
 from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
-from outward_assembly.basic_seq_operations import is_subseq
+from outward_assembly.basic_seq_operations import (
+    SeqOrientation,
+    contig_ids_by_seed,
+    is_subseq,
+)
 
 
 @pytest.mark.fast
@@ -49,3 +54,25 @@ def test_is_subseq_str_inputs():
     """Verify function works with string inputs as well as Seq objects"""
     assert is_subseq("AAGT", "CCACTTGG", check_rc=True)
     assert not is_subseq("AAGT", "CCACTTGG", check_rc=False)
+
+
+@pytest.mark.fast
+@pytest.mark.unit
+def test_contig_ids_by_seed():
+    """
+    Tests that contig_ids_by_seed returns the subset of contigs that contain seeds, along
+    with each contig's orientation with respect to the first seed in the contig
+    """
+    seed = Seq("AAAT")
+    contigs = [
+        SeqRecord(seq=Seq("AAATCGCGCGCG")),  # Seq0: contains seed in FWD orientation
+        SeqRecord(seq=Seq("ATTTGCGCGCGC")),  # Seq1: contains seed in RC orientation
+        SeqRecord(seq=Seq("CCCCCGGGGGG")),  # Seq2: does not contain seed
+        SeqRecord(seq=Seq("AAATATTTCCG")),  # Seq3: contains seed in FWD and then RC
+    ]
+    result = contig_ids_by_seed(records=contigs, seed_seqs=[seed])
+    assert result == {
+        0: SeqOrientation.FORWARD,
+        1: SeqOrientation.REVERSE,
+        3: SeqOrientation.FORWARD,
+    }

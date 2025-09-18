@@ -52,16 +52,17 @@ def _seqs_overlap_single(
     return False
 
 
-def seqs_overlap(
+def get_seq_overlap_orientation(
     seq1: str | Seq,
     seq2: str | Seq,
     n_0_error: int,
     n_1_error: int,
-    relative_orientation: SeqOrientation,
-) -> bool:
+) -> SeqOrientation | None:
     """
-    Return whether two sequences overlap by at least n_0_error bases with no errors
-    or n_1_error bases with at most 1 error. Detects reverse complement overlaps.
+    Checks whether two sequences overlap, and returns their relative orientation if so
+    (forward or reverse complement). The sequences are considered to overlap if they have
+    an overlapping region of n_0_error bases with no errors or n_1_error bases with at most
+    1 error.
 
     Args:
         seq1: First sequence to check for overlap
@@ -88,14 +89,16 @@ def seqs_overlap(
     seq2_rc = seq2.reverse_complement()
     seq1_rc = seq1.reverse_complement()
 
-    if relative_orientation is SeqOrientation.FORWARD:
-        return _seqs_overlap_single(
-            seq1, seq2, n_0_error, n_1_error
-        ) or _seqs_overlap_single(seq1_rc, seq2_rc, n_0_error, n_1_error)
+    if _seqs_overlap_single(seq1, seq2, n_0_error, n_1_error) or _seqs_overlap_single(
+        seq1_rc, seq2_rc, n_0_error, n_1_error
+    ):
+        return SeqOrientation.FORWARD
+    elif _seqs_overlap_single(seq1, seq2_rc, n_0_error, n_1_error) or _seqs_overlap_single(
+        seq1_rc, seq2, n_0_error, n_1_error
+    ):
+        return SeqOrientation.REVERSE
     else:
-        return _seqs_overlap_single(
-            seq1, seq2_rc, n_0_error, n_1_error
-        ) or _seqs_overlap_single(seq1_rc, seq2, n_0_error, n_1_error)
+        return None
 
 
 def _overlap_graph(seqs: Sequence[str | Seq], n_0_error: int, n_1_error: int) -> nx.Graph:
@@ -110,7 +113,10 @@ def _overlap_graph(seqs: Sequence[str | Seq], n_0_error: int, n_1_error: int) ->
         n_1_error: Minimum overlap length when allowing 1 mismatch
 
     Returns:
-        NetworkX Graph where vertex i corresponds to seqs[i]
+        NetworkX Graph where vertex i corresponds to seqs[i], edges correspond to
+        overlapping seqs, and each edge is annotated with the attribute "orientation", 
+        whose value is the relative SeqOrientation (forward or reverse complement) of the
+        two overlapping seqs
     """
     seqs = [Seq(s) if isinstance(s, str) else s for s in seqs]
 
@@ -123,10 +129,12 @@ def _overlap_graph(seqs: Sequence[str | Seq], n_0_error: int, n_1_error: int) ->
     for i, seq1 in enumerate(seqs[:-1]):
         for j, seq2 in enumerate(seqs[i + 1 :], start=i + 1):
             # Annotate overlap orientation as an attribute on the edge
-            if seqs_overlap(seq1, seq2, n_0_error, n_1_error, SeqOrientation.FORWARD):
-                g.add_edge(i, j, orientation=SeqOrientation.FORWARD)
-            elif seqs_overlap(seq1, seq2, n_0_error, n_1_error, SeqOrientation.REVERSE):
-                g.add_edge(i, j, orientation=SeqOrientation.REVERSE)
+            overlap_orientation = get_seq_overlap_orientation(
+                seq1, seq2, n_0_error, n_1_error
+            )
+            if overlap_orientation is not None:
+                # These sequences do overlap
+                g.add_edge(i, j, orientation=overlap_orientation)
     return g
 
 
@@ -146,6 +154,11 @@ def _traverse_subgraph_and_orient(
            relative orientation those sequences (forward or reverse compliment)
         reference_seq_idx: The sequence for which to find all connected sequences
         reference_seq_orientation: The initial orientation of the reference sequence
+
+    Returns:
+        A dict whose keys are the indices of sequences that are connected to the reference
+        sequence, and whose values are the the orientation of each sequence with respect
+        to the reference orientation
     """
     orientations: Dict[int, SeqOrientation] = {reference_seq_idx: reference_seq_orientation}
     # Queue of nodes whose neighbors we want to traverse next in the breadth-first search
@@ -174,42 +187,39 @@ def _traverse_subgraph_and_orient(
 
 def get_overlapping_sequence_ids(
     seqs: Sequence[str | Seq],
-    subset_seqs: Dict[int, SeqOrientation],
+    seqs_containing_seed: Dict[int, SeqOrientation],
     n_0_error: int,
     n_1_error: int,
 ) -> Dict[int, SeqOrientation]:
     """
-    Get indices of sequences that are in a connected component with any seed-containing
-    sequence, where connectedness is determined by overlapping sequences.
-
-    Computes indices of sequences in seqs that are in a connected component with any
-    sequence containing any of the seed sequences (or its reverse complement) according
-    to the overlap graph. Returns 0-based indices, along with the relative orientation of
+    Get indices of sequences that are connected to any seed-containing sequence, where
+    connectedness is determined by the sequences having an overlapping region. Returns
+    0-based indices into the provided seqs list, along with the relative orientation of
     each sequence with respect to the seed.
 
     Args:
         seqs: Sequences to analyze
-        subset_seqs: Dict to use to subset the above sequences. The keys of this dict are
-            indices of seqs, corresponding to sequences that contain a seed, and the values
-            are the orientation of each sequence relative to the seed it contains
+        seqs_containing_seed: Dict to use to subset the above sequences. The keys of this
+            dict are indices of seqs, corresponding to sequences that contain a seed, and
+            the values are the orientation of each sequence relative to the seed it contains
         n_0_error: Minimum overlap length for exact match
         n_1_error: Minimum overlap length when allowing 1 mismatch
 
     Returns:
-        Dict whose keys are indices into seqs of sequences in connected components with any
-        seed-containing sequence, and whose values are the relative orientation of the seq
-        with respect to the seed
+        Dict whose keys are the indices of any sequence that is connected via overlap to a
+        seed-containing sequence, and whose values are the relative orientation of the
+        sequence with respect to the seed
     """
     seqs = [Seq(s) if isinstance(s, str) else s for s in seqs]
 
     # Construct a graph where nodes are sequences and edges represent overlaps between
     # sequences
-    g = _overlap_graph(seqs, n_0_error, n_1_error)
+    g: nx.Graph = _overlap_graph(seqs, n_0_error, n_1_error)
 
     all_connected_contigs: Dict[int, SeqOrientation] = {}
 
     # Search for sequences that are connected to seed-containing sequences
-    for seed_contig_idx, seed_contig_orientation in subset_seqs.items():
+    for seed_contig_idx, seed_contig_orientation in seqs_containing_seed.items():
         if seed_contig_idx in all_connected_contigs:
             # We've already seen this sequence before in a previous connected component, so
             # don't process it again

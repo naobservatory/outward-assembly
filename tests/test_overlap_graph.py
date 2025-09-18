@@ -39,6 +39,7 @@ def test_overlap_inds_multiple_seeds():
 
 
 @pytest.mark.fast
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "initial_orientation", (SeqOrientation.FORWARD, SeqOrientation.REVERSE)
 )

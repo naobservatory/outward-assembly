@@ -54,9 +54,10 @@ def contig_ids_by_seed(
     records: List[SeqRecord], seed_seqs: List[Seq]
 ) -> Dict[int, SeqOrientation]:
     """
-    Given a list of contigs and a list of seed sequences, returns the indices of contigs
-    that contain at least one seed, along with the orientation of the contig with respect
-    to the seed.
+    Given a list of contigs and a list of seed sequences, returns the indices of each contig
+    that contains at least one seed, along with its orientation with respect to the seed
+    (forward or reverse complement). (If a contig has multiple seeds, we return its
+    orientation with respect to the first seed in the contig.)
 
     Args:
         records: List of SeqRecord objects representing contigs
