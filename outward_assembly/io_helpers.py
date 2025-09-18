@@ -146,7 +146,9 @@ def get_s3_paths_by_priority(input_csv: str, priority: int) -> list[str]:
     # Second pass: collect paths for requested priority
     with open(input_csv, "r") as f:
         reader = csv.DictReader(f)
-        filtered_paths = [str(row) for row in reader if int(row["priority"]) == priority]
+        filtered_paths = [
+            str(row["s3_path"]) for row in reader if int(row["priority"]) == priority
+        ]
     return filtered_paths
 
 
