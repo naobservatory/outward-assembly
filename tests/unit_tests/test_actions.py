@@ -1,6 +1,6 @@
 import pytest
 
-from outward_assembly.actions import increase_k, decrease_k, next_priority
+from outward_assembly.actions import decrease_k, increase_k, next_priority
 
 
 @pytest.mark.fast

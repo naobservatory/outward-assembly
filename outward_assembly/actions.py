@@ -1,4 +1,4 @@
-from typing import Dict, Any, Callable
+from typing import Any, Callable, Dict
 
 
 def increase_k(val: int) -> Callable[[Dict[str, Any]], int]:

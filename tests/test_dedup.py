@@ -217,9 +217,7 @@ class TestSequenceMatching:
     @pytest.mark.fast
     @pytest.mark.unit
     def test_read_pairs_equivalent_standard_orientation(self):
-        params = DedupParams(
-            max_offset=1, max_error_frac=0.01, orientation=ORIENT_STRICT
-        )
+        params = DedupParams(max_offset=1, max_error_frac=0.01, orientation=ORIENT_STRICT)
 
         rp1 = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
         rp2 = ReadPair("read2", "AAAA", "TTTT", "IIII", "IIII")
@@ -232,9 +230,7 @@ class TestSequenceMatching:
     @pytest.mark.unit
     def test_read_pairs_equivalent_swapped_tolerant(self):
         # In tolerant mode, should match F1-R1 vs R2-F2
-        params = DedupParams(
-            max_offset=1, max_error_frac=0.01, orientation=ORIENT_TOLERANT
-        )
+        params = DedupParams(max_offset=1, max_error_frac=0.01, orientation=ORIENT_TOLERANT)
 
         rp1 = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
         rp2 = ReadPair("read2", "TTTT", "AAAA", "IIII", "IIII")  # Swapped F/R
@@ -245,9 +241,7 @@ class TestSequenceMatching:
     @pytest.mark.unit
     def test_read_pairs_equivalent_swapped_strict(self):
         # In strict mode, should NOT match swapped orientation
-        params = DedupParams(
-            max_offset=1, max_error_frac=0.01, orientation=ORIENT_STRICT
-        )
+        params = DedupParams(max_offset=1, max_error_frac=0.01, orientation=ORIENT_STRICT)
 
         rp1 = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
         rp2 = ReadPair("read2", "TTTT", "AAAA", "IIII", "IIII")  # Swapped F/R
@@ -257,9 +251,7 @@ class TestSequenceMatching:
     @pytest.mark.fast
     @pytest.mark.unit
     def test_read_pairs_equivalent_no_match(self):
-        params = DedupParams(
-            max_offset=1, max_error_frac=0.01, orientation=ORIENT_TOLERANT
-        )
+        params = DedupParams(max_offset=1, max_error_frac=0.01, orientation=ORIENT_TOLERANT)
 
         rp1 = ReadPair("read1", "AAAA", "TTTT", "IIII", "IIII")
         rp2 = ReadPair("read2", "GGGG", "CCCC", "IIII", "IIII")

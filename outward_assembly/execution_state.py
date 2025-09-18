@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import Dict, Any
 from datetime import datetime, timedelta
+from typing import Any, Dict
+
 import yaml
 
 DEFAULT_COMPUTE_TIME_LIMIT = "5 hours"
@@ -12,7 +13,7 @@ DEFAULT_USE_BATCH = False
 
 @dataclass
 class ExecutionState:
-    """ Represents the current state of outer iterations of outward assembly, containing parameters for outward assembly that are fixed and configurable, as well as limits on the number of outer iterations that may occur based on the user defined parameters.
+    """Represents the current state of outer iterations of outward assembly, containing parameters for outward assembly that are fixed and configurable, as well as limits on the number of outer iterations that may occur based on the user defined parameters.
 
     Attributes:
         input_seed_path (str): Path to the input seed file.
@@ -98,9 +99,7 @@ class ExecutionState:
     def update_adjustable_parameters(self, updated_state: Dict[str, Any]) -> None:
         """Update the execution state based on the actions that were sucessfully triggered due to the user's decision rules being met."""
         self.read_subset_k = updated_state.get("read_subset_k", self.read_subset_k)
-        self.dataset_priority = updated_state.get(
-            "dataset_priority", self.dataset_priority
-        )
+        self.dataset_priority = updated_state.get("dataset_priority", self.dataset_priority)
         self.current_outer_iterations += 1
 
     def check_limits(self) -> bool:

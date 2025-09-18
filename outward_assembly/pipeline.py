@@ -1,10 +1,11 @@
+import json
 import logging
 import shutil
 import tempfile
-from pathlib import Path
 import time
+from pathlib import Path
 from typing import List, Optional, TypedDict
-import json
+
 from Bio import SeqIO
 from Bio.Seq import Seq
 
@@ -21,12 +22,12 @@ from .pipeline_steps import (
     _assemble_contigs,
     _choose_best_subiter,
     _copy_iteration_reads,
+    _fasta_longest_total,
     _frequency_filter_reads,
     _prepare_query_seqs,
     _record_inputs,
     _subset_contigs,
     _subset_split_files,
-    _fasta_longest_total,
 )
 
 logger = logging.getLogger(__name__)
@@ -197,9 +198,7 @@ def _outward_main_loop(
         logger.debug("Ran megahit")
 
         # Step 3: subset assembled contigs to those containing seed
-        _subset_contigs(
-            workdir, iter, seed_seqs, include_overlaps=overlap_contig_filtering
-        )
+        _subset_contigs(workdir, iter, seed_seqs, include_overlaps=overlap_contig_filtering)
         logger.debug("Found seed-containing contigs")
 
         # Step 4: check if we made progress this iteration and compute metrics.
@@ -298,9 +297,7 @@ def outward_assembly(
     if high_freq_kmers_path is not None:
         high_freq_kmers_path = Path(high_freq_kmers_path)
         if not high_freq_kmers_path.is_file():
-            raise ValueError(
-                f"High frequency kmers file not found: {high_freq_kmers_path}"
-            )
+            raise ValueError(f"High frequency kmers file not found: {high_freq_kmers_path}")
 
     # Set up temporary work directory
     if work_dir_parent is None:

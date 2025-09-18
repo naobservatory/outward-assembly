@@ -1,9 +1,9 @@
 import pytest
 
 from outward_assembly.io_helpers import (
-    process_s3_paths,
     _count_lines,
     concat_and_tag_fastq,
+    process_s3_paths,
 )
 
 

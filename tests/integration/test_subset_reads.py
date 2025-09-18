@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 
 from outward_assembly.io_helpers import _count_lines, process_s3_paths
 from outward_assembly.pipeline_steps import (
+    NF_PROFILE_ENV_VAR,
     _subset_split_files_batch,
     _subset_split_files_local,
-    NF_PROFILE_ENV_VAR,
 )
 
 load_dotenv()

@@ -1,8 +1,8 @@
 # decision_manager.py
-from typing import Dict, Any, List, Callable
 import logging
+from typing import Any, Callable, Dict, List
+
 from outward_assembly import strategy
-from outward_assembly.strategy_helper import OutwardAssemblyMetrics
 
 logger = logging.getLogger(__name__)
 

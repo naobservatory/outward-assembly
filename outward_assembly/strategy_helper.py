@@ -2,7 +2,7 @@
 Helper module that defines the variables on which the user can condition their strategy.
 """
 
-from typing import TypedDict, Literal
+from typing import Literal, TypedDict
 
 # Define the metric keys as string literals
 CONTIG_COUNT: Literal["final_contig_count"] = "final_contig_count"

@@ -1,7 +1,7 @@
 import csv
 import itertools
-import re
 import os
+import re
 from pathlib import Path
 from typing import Iterable, List, NamedTuple
 
@@ -39,9 +39,7 @@ def process_s3_paths(paths: Iterable[str]) -> S3Files:
         if not path.lower().startswith("s3:/"):
             # technically // but this is robust to str(Path(...)) which strips a /
             raise ValueError(f"Path {path} is not a valid s3 path.")
-        if not (
-            path.lower().endswith(".fastq.zst") or path.lower().endswith(".fq.zst")
-        ):
+        if not (path.lower().endswith(".fastq.zst") or path.lower().endswith(".fq.zst")):
             raise ValueError(f"Path {path} must be .fastq.zst")
         # to-do: validate path points to a file
 
@@ -146,12 +144,11 @@ def get_s3_paths_by_priority(input_csv: str, priority: int) -> list[str]:
         )
 
     # Second pass: collect paths for requested priority
-    filtered_paths = []
     with open(input_csv, "r") as f:
         reader = csv.DictReader(f)
-        for row in reader:
-            if int(row["priority"]) == priority:
-                filtered_paths.append(row["s3_path"])
+        filtered_paths = [
+            str(row["s3_path"]) for row in reader if int(row["priority"]) == priority
+        ]
     return filtered_paths
 
 
@@ -182,9 +179,7 @@ def concat_and_tag_fastq(input_files: list[PathLike], output_file: PathLike) -> 
                 with open(filename, "r") as infile:
                     # Identify headers by line number, not leading @ since quality
                     # lines can also start with @
-                    for identifier, sequence, plus, quality in itertools.batched(
-                        infile, 4
-                    ):
+                    for identifier, sequence, plus, quality in itertools.batched(infile, 4):
                         outfile.write(f"{identifier.rstrip()} {sample_name}\n")
                         outfile.writelines([sequence, plus, quality])
     except (IOError, FileNotFoundError) as e:
