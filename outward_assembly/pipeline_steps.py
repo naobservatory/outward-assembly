@@ -4,14 +4,15 @@ import subprocess
 import textwrap
 from multiprocessing import cpu_count
 from pathlib import Path
-from typing import List, NamedTuple, Optional
+from typing import Dict, List, NamedTuple, Optional
 
 from Bio import SeqIO
 from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
-from .basic_seq_operations import is_subseq
+from .basic_seq_operations import SeqOrientation, contig_ids_by_seed
 from .io_helpers import PathLike, S3Files, concat_and_tag_fastq
-from .overlap_graph import overlap_inds
+from .overlap_graph import get_overlapping_sequence_ids
 
 # File names used across functions
 CURRENT_CONTIGS = "current_contigs.fasta"
@@ -124,7 +125,8 @@ def _subset_contigs(
         workdir: Working directory containing megahit output
         iter: Current iteration number
         seed_seqs: Seed sequences to search for
-        include_overlaps: Whether to include contigs in connected components
+        include_overlaps: Whether to include contigs that do not contain a seed themselves,
+            but are connected via overlapping sequences with a contig that does
         overlap_n0: Minimum overlap length for exact matches
         overlap_n1: Minimum overlap length when allowing 1 error
     """
@@ -135,24 +137,36 @@ def _subset_contigs(
         if d.is_dir() and d.name.startswith(f"{MEGAHIT_OUT_PREFIX}{iter}-")
     ]
 
+    # Find the assembly output of each megahit subiteration
     for subiter_dir in subiter_dirs:
         contigs_path = subiter_dir / MEGAHIT_FINAL_CONTIGS
         if not contigs_path.is_file():
             continue
 
         subset_path = subiter_dir / MEGAHIT_FILTERED_CONTIGS
-        records = list(SeqIO.parse(contigs_path, "fasta"))
+        records: List[SeqRecord] = list(SeqIO.parse(contigs_path, "fasta"))
+
+        filtered_records = []
+
+        # Get the indices of all contigs that have seeds in them, along with their orientation
+        # with respect to the seed.
+        subsetted_ids_and_orientations: Dict[int, SeqOrientation] = contig_ids_by_seed(
+            records, seed_seqs
+        )
 
         if include_overlaps:
             seqs = [rec.seq for rec in records]
-            retain_inds = overlap_inds(seqs, seed_seqs, overlap_n0, overlap_n1)
-            filtered_records = [records[i] for i in retain_inds]
-        else:
-            filtered_records = [
-                rec
-                for rec in records
-                if any(is_subseq(seed, rec.seq, check_rc=True) for seed in seed_seqs)
-            ]
+            subsetted_ids_and_orientations = get_overlapping_sequence_ids(
+                seqs, subsetted_ids_and_orientations, overlap_n0, overlap_n1
+            )
+
+        for idx, orientation in subsetted_ids_and_orientations.items():
+            record = records[idx]
+            if record.seq is not None and orientation == SeqOrientation.REVERSE:
+                # Contig is in the reverse direction with respect to the seed. We want to report
+                # it as forward with respect to the seed, so take the reverse compliment
+                record.seq = record.seq.reverse_complement()
+            filtered_records.append(record)
 
         SeqIO.write(filtered_records, subset_path, "fasta")
 
@@ -342,9 +356,7 @@ def _subset_split_files_local(
     # Concatenate per-split hits
     for read_num in (1, 2):
         output_path = workdir / f"reads_{read_num}.fastq"
-        split_files = [
-            workdir / f"{rec.filename}_{read_num}.fastq" for rec in s3_records
-        ]
+        split_files = [workdir / f"{rec.filename}_{read_num}.fastq" for rec in s3_records]
         concat_and_tag_fastq(split_files, output_path)
         for split_file in split_files:
             (workdir / split_file).unlink()
