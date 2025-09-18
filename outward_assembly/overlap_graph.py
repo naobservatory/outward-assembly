@@ -114,7 +114,7 @@ def _overlap_graph(seqs: Sequence[str | Seq], n_0_error: int, n_1_error: int) ->
 
     Returns:
         NetworkX Graph where vertex i corresponds to seqs[i], edges correspond to
-        overlapping seqs, and each edge is annotated with the attribute "orientation", 
+        overlapping seqs, and each edge is annotated with the attribute "orientation",
         whose value is the relative SeqOrientation (forward or reverse complement) of the
         two overlapping seqs
     """
